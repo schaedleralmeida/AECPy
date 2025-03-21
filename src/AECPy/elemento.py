@@ -6,12 +6,12 @@ pelo Método da Rigidez Direta (MRD) no AECPy
 import numpy as np
 from math import sqrt
 
-from no import No
-from secao import Secao
-import axial
-import flexao
-import procedimentos as pmm
-import graficos
+from .no import No
+from .secao import Secao
+from . import axial
+from . import flexao
+from . import procedimentos as pmm
+from . import graficos
 
 class Elemento():
     '''

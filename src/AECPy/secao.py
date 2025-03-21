@@ -3,7 +3,7 @@ Módulo para definição da classe Secao para o AECPy
 '''
 
 import math
-from material import Material
+from .material import Material
 
 class Secao():
 

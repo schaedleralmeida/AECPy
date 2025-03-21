@@ -147,7 +147,7 @@ class No():
         return self.coor[self.__eixos_globais.index('z')]
     
     @property
-    def 'igdl'(self):
+    def igdl(self):
         ''' Índice global dos graus de liberdade do nó '''
         return list(self.__igdl)
     
