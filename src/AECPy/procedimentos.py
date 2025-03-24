@@ -226,7 +226,7 @@ def R3D_mod_ang(R, ang):
     s = sin(ang_rad)
     c = cos(ang_rad)
     Rang = np.array([[1, 0, 0], [0, c, s], [0, -s, c]])
- 
+
     return Rang @ R
 
 
