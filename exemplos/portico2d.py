@@ -40,9 +40,9 @@ ngdlF = aec.modelo.numerar_gdls(nos)
 for i, no in enumerate(nos):
     print(f'{i=} : {no.igdl=}')
 
-
-
 K, F = aec.modelo.construir_rigidez_forças(nos, els, ngdl)
 U, R = aec.modelo.resolver(K, F, nos, ngdlF)
 
-    
+res = aec.modelo.resultados_nos(nos, U, R)
+
+print(res )

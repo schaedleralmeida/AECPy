@@ -73,7 +73,7 @@ def construir_rigidez_forças(
 
         igdl = el.igdl
         # soma a contribuição do elememto à matriz de rigidez global
-        K[igdl, igdl] += K_el_global
+        pmm.espalhar(K_el_global, K , igdl)
 
         # Fornas nodais equivalentes em elementos carregados
         # if el.carregado or el.variacao_termica or el.def_ini:
@@ -144,7 +144,7 @@ def resultados_nos(
     elif isinstance(index, int):
         ii = [index]
     else:
-        ii = index
+        ii = ii
 
     data = np.zeros((len(ii), 2 * ngdl_no))
 
