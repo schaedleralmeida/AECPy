@@ -197,9 +197,7 @@ def R3D(e1) -> np.ndarray:
         e3 = aux3 / np.linalg.norm(aux3)
         e2 = np.cross(e3, e1)
 
-    R = np.array([e1, e2, e3])
-
-    return R
+    return np.array([e1, e2, e3])
 
 
 def R3D_mod_ang(R, ang):
@@ -228,8 +226,8 @@ def R3D_mod_ang(R, ang):
     s = sin(ang_rad)
     c = cos(ang_rad)
     Rang = np.array([[1, 0, 0], [0, c, s], [0, -s, c]])
-    Rmod = Rang @ R
-    return Rmod
+ 
+    return Rang @ R
 
 
 def R3D_u(e1, u):
@@ -272,9 +270,7 @@ def R3D_u(e1, u):
     e3 = aux3 / np.linalg.norm(aux3)
     e2 = np.cross(e3, e1)
 
-    R = np.array([e1, e2, e3])
-
-    return R
+    return np.array([e1, e2, e3])
 
 
 def reordenar_array(A, ord_lin, ord_col=None):

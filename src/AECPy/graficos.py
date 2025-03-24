@@ -329,7 +329,7 @@ def conv_rel(rel, conv):
             try:
                 c = conv.para(ups)
                 qtext += f" ({ups})"
-            except:
+            except Exception:
                 if ups == "rad":
                     qtext += " (rad)"
                 c = 1.0

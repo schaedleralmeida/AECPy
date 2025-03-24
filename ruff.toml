@@ -6,3 +6,4 @@ line-length = 79
 # overlap with the use of a formatter, like Black, but we can override this behavior by
 # explicitly adding the rule.
 extend-select = ["E501", "N", "R", "I"]
+ignore = ["N802", "N803", "N806", "E501"]

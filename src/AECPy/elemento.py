@@ -226,7 +226,7 @@ class Elemento:
         """
         try:
             return self.__alterar_el
-        except:
+        except AttributeError:
             return None  # if hasattr(self, '_Elemento_alterar_el') else None
 
     @alterar_eixos_locais.setter
@@ -419,13 +419,13 @@ class Elemento:
         for prt, il in self.__partes.items():
             carga = self.__parte_rigidez[prt]["carga"]
             calc_rep = self.__parte_rigidez[prt]["rep"]
-            if calc_rep != None:
+            if calc_rep is not None:
                 w = carga_total[carga]
                 rep[il] += calc_rep(self.L, w)
 
             dTemp = self.__parte_rigidez[prt]["dTemp"]
             calc_rep_dT = self.__parte_rigidez[prt]["rep_dT"]
-            if calc_rep_dT != None and dTemp in cTemp:
+            if calc_rep_dT is not None and dTemp in cTemp:
                 dT = cTemp[dTemp]
                 rep[il] += calc_rep_dT(self.L, self.sec, dT)
 

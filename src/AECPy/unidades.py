@@ -28,7 +28,7 @@ funções:
 
 """
 
-__all__ = ["Quantidades", "Conversor"]
+__all__ = ["Quantidade", "Conversor"]
 __version__ = "0.1"
 __author__ = "Felipe Schaedler de Almeida"
 
