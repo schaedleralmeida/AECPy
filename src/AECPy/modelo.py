@@ -24,12 +24,14 @@ def numerar_gdls(nos: list[No]) -> int:
 
     # numerando os gdls livres
     for no in nos:
-        igdl = no.ngdl * [None]
+        igdl = list()
         iS = sorted(list(no.il_gdlr) + list(no.il_gdlp))
         for i in range(no.ngdl):
             if i not in iS:
-                igdl[i] = ii
+                igdl.append(ii)
                 ii += 1
+            else:
+                igdl.append(None)
         all.append(igdl)
 
     ngdlF = ii
@@ -49,7 +51,7 @@ def numerar_gdls(nos: list[No]) -> int:
 
 def construir_rigidez_forças(
     nos: list[No], els: list[Elemento], ngdl: int
-) -> tuple(np.ndarray, np.ndarray):
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Função para construir a matriz de rigidez global e o vetor de forças nodais equivalentes
     """
@@ -99,9 +101,9 @@ def construir_rigidez_forças(
     return K, F
 
 
-def resolver(K: np.ndarray, F: np.ndarray, nos: list[No], ngdlF: int) -> tuple(
+def resolver(K: np.ndarray, F: np.ndarray, nos: list[No], ngdlF: int) -> tuple[
     np.ndarray, np.ndarray
-):
+]:
     """
     Função para resolver o sistema de equações lineares
     """
