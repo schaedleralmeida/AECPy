@@ -1,13 +1,13 @@
-'''
+"""
 Módulo para conversão de unidades de medidas.
 
 O objetivo principal é a transformação de quantiades entre
-unidades defindidas pelo usário e unidades definidas como padrão 
+unidades defindidas pelo usário e unidades definidas como padrão
 para os cálculos em um programa.
 
 Classes:
 
-    Quantidade: se destina à conversão de unidades de medidas 
+    Quantidade: se destina à conversão de unidades de medidas
     para uma determinada quantidade (ex.: comrpimento, força, momento, etc.)
     Em cada quantidade estão definidas unidades de medidas,
     os fatores de transformação entre estas unidades e
@@ -15,25 +15,26 @@ Classes:
 
     Conversor: se destina à conversão de unidades para um conjunto
     de quantidades usadas nos cálculos. As unidades padrão de cada quantidade,
-    são compatíveis com as unidades padrão de comprimento e força 
+    são compatíveis com as unidades padrão de comprimento e força
     para a realização dos cálculos
 
 funções:
-    
+
     unidades_derivadas_expoente(unidades,expoente)
 
     unidades_derivadas_prefixos(unidade,fator,prefixos)
 
     unidades_derivadas_compor(unidades1,unidades2,operacao='multiplicar')
 
-'''
-__all__ = ['Quantidades', 'Conversor']
-__version__ = '0.1'
-__author__ = 'Felipe Schaedler de Almeida'
+"""
+
+__all__ = ["Quantidades", "Conversor"]
+__version__ = "0.1"
+__author__ = "Felipe Schaedler de Almeida"
 
 
-class Quantidade():
-    '''
+class Quantidade:
+    """
     Classe para definir a conversão entre unidades de uma quantidade
 
     Atributos
@@ -85,11 +86,11 @@ class Quantidade():
     obter as unidades definidas para a conversão
     >>> q = Quantidade('comprimento','mm',{'m':1, 'cm':0.01, 'mm':0.001})
     >>> q.unidades
-    {'m':1, 'cm':0.01, 'mm':0.001} 
-    '''
+    {'m':1, 'cm':0.01, 'mm':0.001}
+    """
 
-    def __init__(self,nome,unidade_padrao,unidades):
-        '''
+    def __init__(self, nome, unidade_padrao, unidades):
+        """
         Inicia uma instânica da classe quantidade
 
         Parâmetros
@@ -102,7 +103,7 @@ class Quantidade():
             dicionário com unidades, onde
             key: é o nome da unidade
             value: é o fator de conversao para a unidade básica do SI
-        '''
+        """
 
         self.__nome = nome
         self.__unidades = unidades
@@ -110,108 +111,111 @@ class Quantidade():
 
     @property
     def nome(self):
-        '''Nome da quantidade'''
+        """Nome da quantidade"""
         return self.__nome
 
     @property
     def unidades(self):
-        '''Unidades definidas para a quantidade'''
+        """Unidades definidas para a quantidade"""
         return self.__unidades
-    
+
     @property
     def padrao(self):
-        '''Unidade padrão para a quantidade'''
+        """Unidade padrão para a quantidade"""
         return self.__padrao
-    
-    def __verificar(self,uni):
-        '''Verifica se a unidade `uni` está definida para a quantidade'''
-        if not uni in self.unidades:
-            raise ValueError(f'A unidade {uni} não está na lista de unidades {list(self.unidades.keys())}')
-    
+
+    def __verificar(self, uni):
+        """Verifica se a unidade `uni` está definida para a quantidade"""
+        if uni not in self.unidades:
+            raise ValueError(
+                f"A unidade {uni} não está na lista de unidades {list(self.unidades.keys())}"
+            )
+
     def definir_padrao(self, unidade_padrao):
-        '''Define a `unidade_padrao` como a unidade padrão da quantidade'''
+        """Define a `unidade_padrao` como a unidade padrão da quantidade"""
         self.__verificar(unidade_padrao)
         self.__padrao = unidade_padrao
         self.__conv = dict()
         for uni in self.unidades:
-            self.__conv[uni] = self.unidades[uni]/self.unidades[unidade_padrao]
-    
-    def para_padrao(self,val,uni):
-        ''' Converte o valor `val` da unidade `uni` para a unidade padrão '''
+            self.__conv[uni] = (
+                self.unidades[uni] / self.unidades[unidade_padrao]
+            )
+
+    def para_padrao(self, val, uni):
+        """Converte o valor `val` da unidade `uni` para a unidade padrão"""
         self.__verificar(uni)
-        return val*self.__conv[uni]
-    
-    def de_padrao(self,val,uni):
-        ''' Converte o valor `val` da unidade padrão para a unidade `uni` '''
+        return val * self.__conv[uni]
+
+    def de_padrao(self, val, uni):
+        """Converte o valor `val` da unidade padrão para a unidade `uni`"""
         self.__verificar(uni)
         return val / self.__conv[uni]
 
-    def de_para(self,val,de_uni,para_uni):
-        ''' Converte o valor `val` da unidade `de_uni` para a unidade `para_uni` '''
-        val_uni_padrao = self.para_padrao(val,de_uni)
-        return self.de_padrao(val_uni_padrao,para_uni)
+    def de_para(self, val, de_uni, para_uni):
+        """Converte o valor `val` da unidade `de_uni` para a unidade `para_uni`"""
+        val_uni_padrao = self.para_padrao(val, de_uni)
+        return self.de_padrao(val_uni_padrao, para_uni)
 
-    def para_str(self,val,uni=None):
-        '''
+    def para_str(self, val, uni=None):
+        """
         Converte o valor `val` da unidade padrão para a unidade `uni`
         e cria uma string com o valor e a unidade.
         Se `uni` é None, adota a unidade padrão da quantidade
-        '''
+        """
         if uni is None:
             valor = val
             unidade = self.padrao
         else:
-            valor = self.de_padrao(val,uni)
+            valor = self.de_padrao(val, uni)
             unidade = uni
-        return str(valor)+' '+ unidade
+        return str(valor) + " " + unidade
 
-
-    def em(self,uni):
-        '''
+    def em(self, uni):
+        """
         Retorna o fator de conversao da unidade `uni` para a unidade padrão
-        
+
         Parâmetro
         ---------
         uni: str
             Unidade em que a quantidade é definida
-        
+
         Exemplo
         -------
         >>> q = Quantidade('comprimento','m',{'m':1, 'cm':0.01, 'mm':0.001})
         >>> 200 * q.em('mm') : converte 200 mm para a unidade padrão de comprimento (2.0)
-        '''
+        """
         self.__verificar(uni)
         return self.__conv[uni]
 
-    def para(self,uni):
-        '''
+    def para(self, uni):
+        """
         Retorna o fator de conversao da unidade padrão para a unidade `uni`
-        
+
         Parâmetro
         ---------
         uni: str
             Unidade em que a quantidade é definida
-        
+
         Exemplo
         -------
         >>> q = Quantidade('comprimento','m',{'m':1, 'cm':0.01, 'mm':0.001})
         >>> 2 * q.para('mm') : converte 2 em unidade padrão de comprimento ('m') para mm (2000)
-        '''
+        """
         self.__verificar(uni)
-        return 1/self.__conv[uni]  
+        return 1 / self.__conv[uni]
 
     def __repr__(self) -> str:
-        return f'quantidade({self.nome}, {self.padrao}, {self.unidades})'
+        return f"quantidade({self.nome}, {self.padrao}, {self.unidades})"
 
     def __str__(self) -> str:
-        txt  = f'nome: {self.nome} \n'
-        txt += f'padrao: {self.padrao} \n'
-        txt += f'unidades: {self.unidades.__repr__()}'        
+        txt = f"nome: {self.nome} \n"
+        txt += f"padrao: {self.padrao} \n"
+        txt += f"unidades: {self.unidades.__repr__()}"
         return txt
 
 
-def unidades_derivadas_expoente(unidades,expoente):
-    '''
+def unidades_derivadas_expoente(unidades, expoente):
+    """
     Cria um dicionário de unidades derivadas pelo expoente
 
     Parâmetros
@@ -229,17 +233,17 @@ def unidades_derivadas_expoente(unidades,expoente):
         dicionário com unidades, onde
         key: é o nome da variável
         value: é o fator de conversao para a unidade básica do SI
-    '''    
+    """
 
     exp = str(expoente)
     uni = dict()
     for u, f in unidades.items():
-        uni[u+exp] = f**expoente
-    return uni    
+        uni[u + exp] = f**expoente
+    return uni
 
 
-def unidades_derivadas_compor(unidades1,unidades2,operacao='multiplicar'):
-    '''
+def unidades_derivadas_compor(unidades1, unidades2, operacao="multiplicar"):
+    """
     Cria um dicionário de unidades derivadas pela composição de duas variáveis
 
     Parâmetros
@@ -253,26 +257,27 @@ def unidades_derivadas_compor(unidades1,unidades2,operacao='multiplicar'):
         São aceitos os valores:
             `multiplicar` -> unidades1 * unidades2
             `dividir` -> unidades1/ unidades2
-    
+
     Returns
     -------
     uni: dict
         dicionário com unidades, onde
         key: é o nome da variável
         value: é o fator de conversao para a unidade básica do SI
-    '''
+    """
 
     uni = dict()
     for u1, f1 in unidades1.items():
         for u2, f2 in unidades2.items():
-            if operacao == 'multiplicar':
-                uni[u1+u2] = f1*f2
-            elif operacao == 'dividir':
-                uni[u1+'/'+u2] = f1/f2
+            if operacao == "multiplicar":
+                uni[u1 + u2] = f1 * f2
+            elif operacao == "dividir":
+                uni[u1 + "/" + u2] = f1 / f2
     return uni
 
-def unidades_derivadas_prefixos(unidade,fator,prefixos):
-    '''
+
+def unidades_derivadas_prefixos(unidade, fator, prefixos):
+    """
     Cria um dicionário de unidades derivadas em termos do prefixo
 
     Parâmetros
@@ -284,7 +289,7 @@ def unidades_derivadas_prefixos(unidade,fator,prefixos):
     prefixos: list
         Lista de prefixos usados para criar as unidades derivdas
         São válidos os prefixos k, M e G
-    
+
 
     Returns
     -------
@@ -292,19 +297,17 @@ def unidades_derivadas_prefixos(unidade,fator,prefixos):
         dicionário com unidades, onde
         key: é o nome da variável
         value: é o fator de conversao para a unidade básica do SI
-    '''
-    dp = {'k':10**3,'M':10**6,'G':10**9}
-    uni = {unidade:fator}
+    """
+    dp = {"k": 10**3, "M": 10**6, "G": 10**9}
+    uni = {unidade: fator}
     for pref in prefixos:
         if pref in dp:
-            uni[pref+unidade] = dp[pref]*fator
+            uni[pref + unidade] = dp[pref] * fator
     return uni
 
 
-
-
-class Conversor():
-    '''
+class Conversor:
+    """
     Classe para transformação de unidadades de várias quantidades
     usadas em um mesmo problema.
 
@@ -315,7 +318,7 @@ class Conversor():
     unidades_padrao: dict
         Dicionario com a unidade padrão para cada quantidade considerada no conversor
     comprimento, forca, momento, area , volume, tensao, peso_especifico: quantidade
-        acesso direto às quantidades disponíveis para conversão de unidades   
+        acesso direto às quantidades disponíveis para conversão de unidades
 
     Exemplo
     -------
@@ -366,146 +369,160 @@ class Conversor():
     'área': 'mm2',
     'volume': 'mm3',
     'tensão': 'N/mm2',
-    'peso específico': 'N/mm3'}   
-    '''
+    'peso específico': 'N/mm3'}
+    """
 
-    def __init__(self,up_comprimento='m',up_forca='N'):
-
+    def __init__(self, up_comprimento="m", up_forca="N"):
         self.__quantidades = list()
 
-        #comprimento
-        self.__comprimento = Quantidade('comprimento',up_comprimento,  {'m':1, 'mm':1.e-3, 'cm':1.e-2} )
+        # comprimento
+        self.__comprimento = Quantidade(
+            "comprimento", up_comprimento, {"m": 1, "mm": 1.0e-3, "cm": 1.0e-2}
+        )
         self.__quantidades.append(self.__comprimento)
 
-        #força
-        self.__forca = Quantidade('força',up_forca,  {'N':1, 'kN':1.e3, 'kgf':1.e1} )
+        # força
+        self.__forca = Quantidade(
+            "força", up_forca, {"N": 1, "kN": 1.0e3, "kgf": 1.0e1}
+        )
         self.__quantidades.append(self.__forca)
 
-        #momento
-        unidades = unidades_derivadas_compor(self.__forca.unidades, self.__comprimento.unidades)
+        # momento
+        unidades = unidades_derivadas_compor(
+            self.__forca.unidades, self.__comprimento.unidades
+        )
         up = up_forca + up_comprimento
-        self.__momento = Quantidade('momento',up,  unidades )
+        self.__momento = Quantidade("momento", up, unidades)
         self.__quantidades.append(self.__momento)
-        
-        #área
-        unidades = unidades_derivadas_expoente(self.__comprimento.unidades,2)
-        up = up_comprimento + '2'
-        self.__area = Quantidade('área',up,  unidades )
+
+        # área
+        unidades = unidades_derivadas_expoente(self.__comprimento.unidades, 2)
+        up = up_comprimento + "2"
+        self.__area = Quantidade("área", up, unidades)
         self.__quantidades.append(self.__area)
 
-        #volume
-        unidades = unidades_derivadas_expoente(self.__comprimento.unidades,3)
-        up = up_comprimento + '3'
-        self.__volume = Quantidade('volume',up,  unidades )
+        # volume
+        unidades = unidades_derivadas_expoente(self.__comprimento.unidades, 3)
+        up = up_comprimento + "3"
+        self.__volume = Quantidade("volume", up, unidades)
         self.__quantidades.append(self.__volume)
 
-        #tensão
-        unidades = unidades_derivadas_compor(self.__forca.unidades, self.__area.unidades, 'dividir')
-        unidades_adicionais = unidades_derivadas_prefixos('Pa',1,['k','M','G'])
-        up = up_forca + '/' + up_comprimento + '2'
-        self.__tensao =  Quantidade('tensão',up,  unidades | unidades_adicionais )
+        # tensão
+        unidades = unidades_derivadas_compor(
+            self.__forca.unidades, self.__area.unidades, "dividir"
+        )
+        unidades_adicionais = unidades_derivadas_prefixos(
+            "Pa", 1, ["k", "M", "G"]
+        )
+        up = up_forca + "/" + up_comprimento + "2"
+        self.__tensao = Quantidade(
+            "tensão", up, unidades | unidades_adicionais
+        )
         self.__quantidades.append(self.__tensao)
 
-        #peso específico
-        unidades = unidades_derivadas_compor(self.__forca.unidades, self.__volume.unidades,'dividir')
-        up = up_forca + '/' + up_comprimento + '3'
-        self.__peso_especifico = Quantidade('peso específico',up,  unidades )
+        # peso específico
+        unidades = unidades_derivadas_compor(
+            self.__forca.unidades, self.__volume.unidades, "dividir"
+        )
+        up = up_forca + "/" + up_comprimento + "3"
+        self.__peso_especifico = Quantidade("peso específico", up, unidades)
         self.__quantidades.append(self.__peso_especifico)
 
-        return None
+        return
 
     @property
     def quantidades(self):
-        '''Quantidades definidas para conversão'''
+        """Quantidades definidas para conversão"""
         return self.__quantidades
-    
+
     @property
     def unidades_padrao(self):
-        '''Unidades padrão para conversão das quantidades definidas'''
+        """Unidades padrão para conversão das quantidades definidas"""
         up = dict()
         for q in self.quantidades:
             up[q.nome] = q.padrao
         return up
-        
+
     @property
     def comprimento(self):
-        '''quantidade comprimento'''
+        """quantidade comprimento"""
         return self.__comprimento
 
     @property
     def forca(self):
-        '''quantidade força'''
+        """quantidade força"""
         return self.__forca
 
     @property
     def area(self):
-        '''quantidade área'''
+        """quantidade área"""
         return self.__area
-    
+
     @property
     def volume(self):
-        '''quantidade volume'''
+        """quantidade volume"""
         return self.__volume
-    
+
     @property
     def momento(self):
-        '''quantidade momento'''
+        """quantidade momento"""
         return self.__momento
-    
+
     @property
     def tensao(self):
-        '''quantidade tensão'''
+        """quantidade tensão"""
         return self.__tensao
-    
+
     @property
     def peso_especifico(self):
-        '''quantidade peso específico'''
+        """quantidade peso específico"""
         return self.__peso_especifico
 
-    def get_quantidade(self,uni):
-        ''' retorna a quantidade que contém a unidade `uni` e levanta ValueErro caso não encontre'''
+    def get_quantidade(self, uni):
+        """retorna a quantidade que contém a unidade `uni` e levanta ValueErro caso não encontre"""
         for i, q in enumerate(self.quantidades):
-            if uni in q.unidades :
-                if i>0: self.__quantidades.insert(0,self.__quantidades.pop(i))
+            if uni in q.unidades:
+                if i > 0:
+                    self.__quantidades.insert(0, self.__quantidades.pop(i))
                 return q
-        raise ValueError(f'A unidade {uni} não está na lista de unidades')
+        raise ValueError(f"A unidade {uni} não está na lista de unidades")
 
-    def em(self,uni):
-        '''
+    def em(self, uni):
+        """
         Retorna o fator de conversao da unidade `uni` para a unidade padrão
-        
+
         Parâmetro
         ---------
         uni: str
             Unidade em que a quantidade é definida
-        
+
         Exemplo
         -------
         >>> conv = Conversor()
         >>> 200 * conv.em('mm') : converte 200 mm para a unidade padrão de comprimento
-        '''
+        """
         q = self.get_quantidade(uni)
         return q.em(uni)
 
-    def para(self,uni):
-        '''
+    def para(self, uni):
+        """
         Retorna o fator de conversao da unidade padrão para a unidade `uni`
-        
+
         Parâmetro
         ---------
         uni: str
             Unidade em que a quantidade é definida
-        
+
         Exemplo
         -------
         >>> conv = Conversor()
         >>> 200 * conv.para('mm') : converte 200 em unidade padrão de comprimento para mm
-        '''
+        """
         q = self.get_quantidade(uni)
         return q.para(uni)
-    
-    def para_str(self,val,uni_nome):
-        '''
+
+    def para_str(self, val, uni_nome):
+        """
         Converte o valor em uma string com a unidade
 
         Parâmetros
@@ -516,9 +533,9 @@ class Conversor():
             Define a unidade ou tipo de quantidade.
             Quando a unidade é informada, o valor `val` é convertido
             Quando a quantidade é informada, a unidade padrão é usada para formar a string
-        '''
+        """
         for q in self.quantidades:
             if q.nome == uni_nome:
                 return q.para_str(val)
         q = self.get_quantidade(uni_nome)
-        return q.para_str(val,uni_nome)
+        return q.para_str(val, uni_nome)
