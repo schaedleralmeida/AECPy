@@ -9,6 +9,8 @@ import pandas as pd
 from . import procedimentos as pmm
 from .elemento import Elemento
 from .no import No
+from .unidades import Conversor
+from .graficos import unidade_padrao_saida
 
 
 def numerar_gdls(nos: list[No]) -> int:
@@ -49,11 +51,11 @@ def numerar_gdls(nos: list[No]) -> int:
     return ngdlF
 
 
-def construir_rigidez_forças(
+def construir_SEL(
     nos: list[No], els: list[Elemento], ngdl: int
 ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Função para construir a matriz de rigidez global e o vetor de forças nodais equivalentes
+    Função para construir a matriz de rigidez global e o vetor de forças nodais
     """
 
     K = np.zeros((ngdl, ngdl))
@@ -73,7 +75,7 @@ def construir_rigidez_forças(
 
         igdl = el.igdl
         # soma a contribuição do elememto à matriz de rigidez global
-        K[igdl, igdl] += K_el_global
+        pmm.espalhar(K_el_global, K , igdl)
 
         # Fornas nodais equivalentes em elementos carregados
         # if el.carregado or el.variacao_termica or el.def_ini:
@@ -101,7 +103,7 @@ def construir_rigidez_forças(
     return K, F
 
 
-def resolver(K: np.ndarray, F: np.ndarray, nos: list[No], ngdlF: int) -> tuple[
+def resolver_SEL(K: np.ndarray, F: np.ndarray, nos: list[No], ngdlF: int) -> tuple[
     np.ndarray, np.ndarray
 ]:
     """
@@ -130,30 +132,35 @@ def resolver(K: np.ndarray, F: np.ndarray, nos: list[No], ngdlF: int) -> tuple[
     return U, R
 
 
-def resultados_nos(
-    nos: list[No], U: np.ndarray, R: np.ndarray, index=None
-) -> pd.DataFrame:
+def resultados_nos(nos: list[No], U: np.ndarray, R: np.ndarray) -> pd.DataFrame:
     """
     Função para criar uma dataframe com os resultados nos nós
     """
     deslocamentos = [d for d in No.info("gdls globais")]
     reacoes = ["R" + f for f in No.info("forças globais")]
     ngdl_no = nos[0].ngdl
-    if index is None:
-        ii = [i for i in range(len(nos))]
-    elif isinstance(index, int):
-        ii = [index]
-    else:
-        ii = index
+        
+    data = np.zeros((len(nos), 2 * ngdl_no))
 
-    data = np.zeros((len(ii), 2 * ngdl_no))
-
-    for i in ii:
-        igdl = nos[i].igdl
+    for i, no in enumerate(nos):
+        igdl = no.igdl
         data[i, :ngdl_no] = U[igdl]
         data[i, ngdl_no:] = R[igdl]
 
     df = pd.DataFrame(data, columns=(deslocamentos + reacoes))
-    df.index = ii
 
     return df
+
+
+def resultados_elementos(els: list[Elemento], U: np.ndarray, npts:int=5) -> list[dict]:
+    """
+    Função para criar uma dataframe com os resultados nos elementos
+    """
+    resultados = list()
+    for el in els:
+        x = np.linspace(0,el.L,npts)
+        dl = el.dl(U)
+        rel = el.rel(dl, x)
+        resultados.append(rel)
+    
+    return resultados
