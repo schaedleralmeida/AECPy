@@ -6,3 +6,4 @@ from .elemento import Elemento
 from . import unidades
 from . import procedimentos
 from . import modelo
+from . import graficos
