@@ -1,6 +1,10 @@
 
 import AECPy as aec
 
+import sys
+import os
+dir_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.realpath(f"{dir_path}/../src/"))
 
 aec.No.iniciar('PP')
 aec.Elemento.iniciar('PP')
@@ -17,8 +21,8 @@ sec1 = aec.SecaoRetangular(b=10.0,h=30.0,mat=mat1,nome='barra_retangular')
 nos = [aec.No([0.0, 0.0])] * 4
 print(nos)
 
-nos[0] = aec.No([0.0, 0.0]) # type: ignore
-nos[1] = aec.No([0.0, H]) # type: ignore
+nos[0] = aec.No([0.0, 0.0])
+nos[1] = aec.No([0.0, H]) 
 nos[2] = aec.No([L, H])
 nos[3] = aec.No([L, 0.0])
 
@@ -40,9 +44,9 @@ ngdlF = aec.modelo.numerar_gdls(nos)
 for i, no in enumerate(nos):
     print(f'{i=} : {no.igdl=}')
 
-K, F = aec.modelo.construir_rigidez_forças(nos, els, ngdl)
-U, R = aec.modelo.resolver(K, F, nos, ngdlF)
+K, F = aec.modelo.construir_SEL(nos, els, ngdl)
+U, R = aec.modelo.resolver_SEL(K, F, nos, ngdlF)
 
 res = aec.modelo.resultados_nos(nos, U, R)
 
-print(res )
+print(res)
