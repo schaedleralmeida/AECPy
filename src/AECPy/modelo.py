@@ -5,13 +5,63 @@ pelo Método da Rigidez Direta (MRD) no AECPy
 
 import numpy as np
 import pandas as pd
+from typing import Union
 
 from . import procedimentos as pmm
 from .elemento import Elemento
 from .no import No
 from .unidades import Conversor
-from .graficos import unidade_padrao_saida
+from . import graficos
 
+class Modelo:
+    """
+    Classe para definição do modelo da estrutura
+    """
+    npts_res_els = 5
+
+    def __init__(self, nos, els, conv:Union[Conversor,None]=None):
+        self.nos = nos
+        self.els = els
+        self.conv = conv
+
+        self.nnos = len(nos)
+        self.nels = len(els)
+        self.ngdl = self.nnos * nos[0].ngdl
+
+    def resolver(self):
+        """
+        Função para resolver o modelo da estrutura
+        """
+        self.ngdlF = numerar_gdls(self.nos)
+        self.K, self.F = construir_SEL(self.nos, self.els, self.ngdl)
+        self.U, self.R = resolver_SEL(self.K, self.F, self.nos, self.ngdlF)
+        self.res_nos = resultados_nos(self.nos, self.U, self.R)
+        self.res_els = resultados_elementos(self.els, self.U,npts=self.npts_res_els)
+    
+    def figura(self):
+        """
+        Função para criar a figura do modelo
+        """
+        if self.nos[0].ndim == 2:
+            fig = graficos.modelo_2d(self.nos, self.els)
+        else:
+            fig = graficos.modelo_3d(self.nos, self.els)
+        return fig
+    
+    def diagramas(self, iel:int, resultados:list[str]=[]):
+        """
+        Função para criar a figura dos diagramas do elemento iel
+        """
+        ajustes  = {'eltag':iel}
+        if resultados != []:
+            ajustes['resultados'] = resultados
+        if self.conv is not None:
+            ajustes['conv'] = self.conv
+
+        fig = graficos.diagramas(self.res_els[iel], **ajustes)
+
+        return fig
+        
 
 def numerar_gdls(nos: list[No]) -> int:
     """
