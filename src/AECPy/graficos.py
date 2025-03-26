@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from .unidades import Conversor
+
 __format_diagrama = {
     "size": 10,
     "color_marker": "black",
@@ -73,7 +75,7 @@ def unidade_padrao_saida(quantidade):
     return _unidade_padrao_saida[q] if q else q
 
 
-def diagramas(relpts, resultados=None, conv=None):
+def diagramas(relpts, resultados=None, conv=None, eltag=None):
     """
     Cria uma figura com os diagramas de deslocamentos e esforços ao longo
     do eixos do elemento;
@@ -123,7 +125,7 @@ def diagramas(relpts, resultados=None, conv=None):
     titulo_abscissa = [k for k in absc.keys()]
     titulo_abscissa = titulo_abscissa[0]
     vals_abscissa = np.array(absc[titulo_abscissa])
-    axes_res[-1].set_xlabel(titulo_abscissa[0])
+    axes_res[-1].set_xlabel(titulo_abscissa)
 
     # Criando os diagramas para cada resultado no elemento
     for (
@@ -132,6 +134,9 @@ def diagramas(relpts, resultados=None, conv=None):
     ) in zip(res.items(), axes_res):
         ax = criar_diagrama(ax, vals_abscissa, np.array(rr[1]), [rr[0], ""])
 
+    #axes_res[-1].set_xlabel(titulo_abscissa)
+    if eltag is not None:
+        fig.suptitle(f'Elemento {eltag}')
     return fig
 
 
@@ -276,7 +281,71 @@ def modelo_3d(nos, els):
     return fig
 
 
-def tabela_rel(relpts, resultados=None, conv=None):
+
+def modelo_2d(nos, els):
+    """
+    Cria uma figura para a visualização 2D do modelo estrutural
+
+    Parâmetros
+    ----------
+    nos: list (of No)
+        Nós do modelo
+    els: list (of Elemento)
+        Elementos do modelo
+    """
+
+    if nos[0].ndim != 2:
+        raise ValueError("O modelo estrutural não é 2D")
+
+    estilo_nos = {"c": "k", "s": 50, "alpha": 1.0}
+    estilo_elementos = {
+        "linestyle": "-",
+        "color": "b",
+        "linewidth": 5,
+        "alpha": 1.0,
+    }
+
+    x = []
+    z = []
+    for no in nos:
+        x.append(no.x)
+        z.append(no.z)
+
+    fig = plt.figure(figsize=[10, 10])
+    ax = fig.add_subplot(xlabel="x", ylabel="z")
+    
+    ax.set_box_aspect( np.ptp(z) / np.ptp(x) )
+    
+    # desenhando os elementos
+    estilo_els_mod = dict(estilo_elementos)
+    i = 0
+    secoes = set()
+    for el in els:
+        secoes.add(el.sec)
+    secoes = list(secoes)
+    legenda_sec = []
+    for i, sec in enumerate(secoes):
+        legenda_sec.append((f"C{i}", sec.nome))
+
+    for el in els:
+        x_el = [el.noI.x, el.noJ.x]
+        z_el = [el.noI.z, el.noJ.z]
+        i = secoes.index(el.sec)
+        estilo_els_mod["color"] = legenda_sec[i][0]
+        ax.plot(x_el, z_el, **estilo_els_mod)
+
+    # desenhando os nós
+    ax.scatter(x, z, **estilo_nos)
+
+    patches = [mpatches.Patch(color=s[0], label=s[1]) for s in legenda_sec]
+    ax.legend(handles=patches)
+    # incluindo os títulos dos eixos
+    ax.set_xlabel("x")
+    ax.set_ylabel("z")
+
+    return fig
+
+def tabela_rel(relpts:dict, resultados:list[str]=[], conv:Conversor|None=None) -> pd.DataFrame:
     """
     Cria uma tabela com os deslocamentos e esforços ao longo
     do eixos do elemento;
@@ -297,7 +366,7 @@ def tabela_rel(relpts, resultados=None, conv=None):
         Quando não for definido, os diagramas são criados sem a indicação de unidades.
     """
 
-    if resultados:
+    if len(resultados)>0:
         if "x" not in resultados:
             resultados = ["x"] + resultados
         res = dict()
@@ -316,7 +385,7 @@ def tabela_rel(relpts, resultados=None, conv=None):
     return df.T
 
 
-def conv_rel(rel, conv):
+def conv_rel(rel:dict, conv:Conversor):
     """
     Converte os resultados no elemento para as unidades de saída padrão
     e adiciona a unidade ao nome da quantidade
