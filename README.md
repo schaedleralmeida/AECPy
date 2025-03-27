@@ -1,5 +1,5 @@
 # AECPy
-Programa de Análise Estrutural baseado no método da rigidez direta.
+**A**nálise **E**strutural por **C**omputador em **Py**thon, baseado no método da rigidez direta.
 
 ## Sobre o pacote
 
