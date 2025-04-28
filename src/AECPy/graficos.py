@@ -345,7 +345,7 @@ def modelo_2d(nos, els):
 
     return fig
 
-def tabela_rel(relpts:dict, resultados:list[str]=[], conv:Conversor|None=None) -> pd.DataFrame:
+def tabela_rel(relpts:dict, resultados:list[str]=[], conv=None) -> pd.DataFrame:
     """
     Cria uma tabela com os deslocamentos e esforços ao longo
     do eixos do elemento;

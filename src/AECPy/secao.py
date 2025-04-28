@@ -40,12 +40,11 @@ class Secao:
     nome: str
         Nome do material
     peso_unitario
-    r2
-    r3
+
 
     """
 
-    def __init__(self, mat, A, I3=0, I2=0, J=0, W3=0, W2=0, nome=""):
+    def __init__(self, mat, A, I3=0, I2=0, J=0, nome=""):
         """
         mat: Material
             Material que forma o elemento estrutural
@@ -57,10 +56,6 @@ class Secao:
             Momento de inércia em relação ao eixo local 3 (default é 0, não aplicável para análise de pórticos espaciais)
         J: float (optional)
             Constante de torção pura (constante de St. Venant) (default é 0, não aplicável à análise de pórticos espaciais)
-        W3: float(optional)
-            Módulo de resistência (elástico) para flexão em relação ao eixo 3 (default 0, não aplicável para análise com variaçao térmica na direção do eixo 2)
-        W2: float (optional)
-            Módulo de resistência (elástico) para flexão em relação ao eixo 2 (default 0, não aplicável para análise com variaçao térmica na direção do eixo 3)
         nome: str (optional)
             Nome da seção transveral (default "")
 
@@ -82,8 +77,6 @@ class Secao:
         self.I2 = I2  # Momento de inérica da seção em relação ao eixo local 2
         self.I3 = I3  # Momento de inérica da seção em relação ao eixo local 3
         self.J = J  # Constante de torção pura (St. Venant)
-        self.W2 = W2  # Módulo de resistência elástico em relação ao eixo 2
-        self.W3 = W3  # Módulo de resistência elástico em relação ao eixo 3
         self.nome = nome
 
         self.EA = (
@@ -102,15 +95,6 @@ class Secao:
         """Peso por unidade de comprimento (da barra)"""
         return self.mat.pe * self.A
 
-    @property
-    def r2(self):
-        """Raio de giração em relação ao eixo 2"""
-        return math.sqrt(self.I2 / self.A)
-
-    @property
-    def r3(self):
-        """Raio de giração em relação ao eixo 3"""
-        return math.sqrt(self.I3 / self.A)
 
     def __repr__(self):
         return f"Secao(mat={self.mat.nome}, A ={self.A}, I2={self.I2}, I3={self.I3},J ={self.J} )"
@@ -149,8 +133,6 @@ class SecaoRetangular(Secao):
         c = min(h, b) / 2
         J = (a * c**3) * (16 / 3 - 3.36 * (c / a) * (1 - c**4 / (12 * a**4)))
 
-        W2 = I2 / (b / 2)
-        W3 = I3 / (h / 2)
         self.h = h
         self.b = b
-        super().__init__(mat, A=A, I3=I3, I2=I2, J=J, W2=W2, W3=W3, nome=nome)
+        super().__init__(mat, A=A, I3=I3, I2=I2, J=J, nome=nome)
