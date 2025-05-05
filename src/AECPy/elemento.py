@@ -92,7 +92,7 @@ class Elemento:
     def iniciar(cls, tipo):
         if tipo == "TP":  # elemento de treliça plana
             cls.__R_ord = ([0, 1], (0, 2))  # (u1,u2) = R (ux,uz)
-            cls.__partes = {"ax": (0, 2)}
+            cls.__partes = {"ax": [0, 2]}
             cls.__cargas_locais = tuple()
             cls.__cargas_globais = tuple()
             cls.__var_temperatura = ("dT",)
@@ -453,7 +453,7 @@ class Elemento:
             calc_rel_w = self.__parte_rigidez[prt]["rel_w"]
             if calc_rel_w is not None:
                 carga = self.__parte_rigidez[prt]["carga"]
-                w_prt = carga_total[carga]
+                w_prt = carga_total.get(carga,[0.0,0.0])
                 rel_w = calc_rel_w(xi, self.sec, self.L, w_prt)
             else:
                 rel_w = None
