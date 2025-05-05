@@ -78,13 +78,13 @@ def construir_SEL(
         pmm.espalhar(K_el_global, K , igdl)
 
         # Fornas nodais equivalentes em elementos carregados
-        # if el.carregado or el.variacao_termica or el.def_ini:
-        # Reações de engastamento perfeito (rep) em coordenadas locais
-        rep_el_local = el.rep()
-        # rep em coordenadas globais
-        rep_el = pmm.transf_coord(rep_el_local, R, inv=True)
-        # somando ao vetor de forças nodais equivalentes
-        F[igdl] += -rep_el
+        if el.carregado or el.variacao_termica: # or el.def_ini:
+            # Reações de engastamento perfeito (rep) em coordenadas locais
+            rep_el_local = el.rep()
+            # rep em coordenadas globais
+            rep_el = pmm.transf_coord(rep_el_local, R, inv=True)
+            # somando ao vetor de forças nodais equivalentes
+            F[igdl] += -rep_el
 
     # Contribuição dos nós à matriz de rigidez global e vetor de forças nodais
     for no in nos:
