@@ -44,7 +44,7 @@ class No:
             cls.__eixos_globais = ("x", "z")
             cls.__gdls_globais = ("ux", "uz")
             cls.__gdls_locais = ("u1", "u2")
-            cls.__forcas_globais = ("fx", "fy")
+            cls.__forcas_globais = ("fx", "fz")
 
         elif tipo == "TE":  # Treliça Espacial
             cls.__ndim = 3
