@@ -245,8 +245,15 @@ def modelo_3d(nos, els):
     ax = fig.add_subplot(projection="3d", xlabel="x", ylabel="y", zlabel="z")
     # aspect ratio is 1:1:1 in data space
     folga = 1.2
+    Dx = np.ptp(x)
+    Dy = np.ptp(y)
+    Dz = np.ptp(z)
+    if Dx == 0: Dx = 0.1 * max(Dx, Dy, Dz)
+    if Dy == 0: Dy = 0.1 * max(Dx, Dy, Dz)
+    if Dz == 0: Dz = 0.1 * max(Dx, Dy, Dz)
+
     ax.set_box_aspect(
-        (folga * np.ptp(x), folga * np.ptp(y), folga * np.ptp(z))
+        (folga * Dx, folga * Dy, folga * Dz)
     )
 
     # desenhando os elementos
@@ -314,7 +321,12 @@ def modelo_2d(nos, els):
     fig = plt.figure(figsize=[10, 10])
     ax = fig.add_subplot(xlabel="x", ylabel="z")
     
-    ax.set_box_aspect( np.ptp(z) / np.ptp(x) )
+    Dz = np.ptp(z)
+    Dx = np.ptp(x)
+    if Dz == 0: Dz =0.1*Dx
+    if Dx == 0: Dx = 0.1*Dz 
+
+    ax.set_box_aspect( Dz / Dx )
     
     # desenhando os elementos
     estilo_els_mod = dict(estilo_elementos)
