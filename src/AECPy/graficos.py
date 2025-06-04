@@ -416,3 +416,18 @@ def conv_rel(rel:dict, conv:Conversor):
                 c = 1.0
             rel_ups[qtext] = [c * val for val in vals]
     return rel_ups
+
+
+def unir_rel(res_els:list[dict]) -> dict:
+    """
+    Une os resultados de vários elementos em um único dicinário acumulando a coordenada x
+    e concatenando os valores das outras quantidades
+    """
+    res_uni = dict(res_els[0])  # inicia com o primeiro elemento
+
+    for res in res_els[1:]:
+        for key in res_uni.keys():
+           val = res[key] if key != 'x' else res[key] + res_uni['x'][-1]
+           res_uni[key] = np.concatenate((res_uni[key], val))
+
+    return res_uni
