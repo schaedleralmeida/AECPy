@@ -370,42 +370,12 @@ class Elemento:
 
         return carga_total
 
-    def carga_termica(self):
-        cTemp = dict()
-        if "dT" in self.dTemp:
-            if self.dTemp["dT"] != 0:
-                cTemp["dTm"] = self.dTemp["dT"]
-
-        if "dT2" in self.dTemp:
-            dT2 = self.dTemp["dT2"]
-            dT2_medio = (dT2[1] + dT2[0]) / 2
-            dT2_var = (dT2[1] - dT2[0]) / 2
-            if dT2_medio != 0:
-                cTemp["dTm"] = dT2_medio
-            if dT2_var != 0:
-                cTemp["dTv2"] = dT2_var
-
-        if "dT3" in self.dTemp:
-            dT3 = self.dTemp["dT3"]
-            dT3_medio = (dT3[1] + dT3[0]) / 2
-            dT3_var = (dT3[1] - dT3[0]) / 2
-            if dT3_medio != 0:
-                if "dT2" in self.dTemp:
-                    cTemp["dTm"] = (dT2_medio + dT3_medio) / 2
-                else:
-                    cTemp["dTm"] = dT3_medio
-
-            if dT2_var != 0:
-                cTemp["dTv3"] = dT3_var
-
-        return cTemp
 
     def rep(self):
         """Calcula as reações de engastamento perfeito das cargas nos elementos"""
 
         rep = np.zeros(self.ngdl)
         carga_total = self.carga_total()
-        cTemp = self.carga_termica()
 
         # <<<<< atenação --- programar para treliças ---- >>>>>
         for prt, il in self.__partes.items():
@@ -417,8 +387,8 @@ class Elemento:
 
             dTemp = self.__parte_rigidez[prt]["dTemp"]
             calc_rep_dT = self.__parte_rigidez[prt]["rep_dT"]
-            if calc_rep_dT is not None and dTemp in cTemp:
-                dT = cTemp[dTemp]
+            if calc_rep_dT is not None and dTemp in self.__dTemp:
+                dT = self.__dTemp[dTemp]
                 rep[il] += calc_rep_dT(self.L, self.sec, dT)
 
         return rep
@@ -432,7 +402,6 @@ class Elemento:
         pmm.check_xi(xi)
 
         carga_total = self.carga_total()
-        cTemp = self.carga_termica()
 
         # esforços e deslocamentos no elemento
         for prt, il in self.__partes.items():
@@ -453,8 +422,8 @@ class Elemento:
             # esforços e deslocamentos no elemento devido à variação de temperatura
             calc_rel_dT = self.__parte_rigidez[prt]["rel_dT"]
             dTemp = self.__parte_rigidez[prt]["dTemp"]
-            if calc_rel_dT is not None and dTemp in cTemp:
-                dT_prt = cTemp[dTemp]
+            if calc_rel_dT is not None and dTemp in self.__dTemp:
+                dT_prt = self.__dTemp[dTemp]
                 rel_dT = calc_rel_dT(xi, self.sec, self.L, dT_prt)
             else:
                 rel_dT = None
