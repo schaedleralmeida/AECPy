@@ -36,7 +36,7 @@ class Elemento:
             "carga": "w1",
             "rep": axial.rep_w1,
             "rel_w": axial.rel_w1,
-            "dTemp": "dTm",
+            "dTemp": "dT0",
             "rep_dT": axial.rep_T,
             "rel_dT": axial.rel_T,
         },
@@ -56,7 +56,7 @@ class Elemento:
             "carga": "w3",
             "rep": flexao.rep_w3,
             "rel_w": flexao.rel_w3,
-            "dTemp": "dTv3",
+            "dTemp": "dT3",
             "rep_dT": flexao.rep_T3,
             "rel_dT": flexao.rel_T3,
         },
@@ -66,7 +66,7 @@ class Elemento:
             "carga": "w2",
             "rep": flexao.rep_w2,
             "rel_w": flexao.rel_w2,
-            "dTemp": "dTv2",
+            "dTemp": "dT2",
             "rep_dT": flexao.rep_T2,
             "rel_dT": flexao.rel_T2,
         },
@@ -95,21 +95,21 @@ class Elemento:
             cls.__partes = {"ax": [0, 2]}
             cls.__cargas_locais = tuple()
             cls.__cargas_globais = tuple()
-            cls.__var_temperatura = ("dT",)
+            cls.__var_temperatura = ("dT0",)
 
         elif tipo == "TE":  # elemento de treliça espacial
             cls.__R_ord = None
             cls.__partes = {"ax": [0, 3]}
             cls.__cargas_locais = tuple()
             cls.__cargas_globais = tuple()
-            cls.__var_temperatura = ("dT",)
+            cls.__var_temperatura = ("dT0",)
 
         elif tipo == "PP":  # elemento de pórtico plano
             cls.__R_ord = ([0, 1, 2], [0, 2, 1])  # (u1,u2,r3) = R (ux,uz,ry)
             cls.__partes = {"ax": [0, 3], "b3": [1, 2, 4, 5]}
             cls.__cargas_locais = ("w1", "w2")
             cls.__cargas_globais = ("wx", "wz")
-            cls.__var_temperatura = ("dT2",)
+            cls.__var_temperatura = ("dT0", "dT2")
 
         elif tipo == "GR":  # elemento de grelha
             cls.__R_ord = ([1, 0, 2], [2, 0, 1])  # (u2,r1,r3) = R (uz,rx,ry)
@@ -128,7 +128,7 @@ class Elemento:
             }
             cls.__cargas_locais = ("w1", "w2", "w3")
             cls.__cargas_globais = ("wx", "wy", "wz")
-            cls.__var_temperatura = ("dT2", "dT3")
+            cls.__var_temperatura = ("dT0", "dT2", "dT3")
 
         cls.__tipo = tipo
         cls.__cargas_permitidas = cls.__cargas_globais + cls.__cargas_locais
@@ -309,26 +309,18 @@ class Elemento:
         return
 
     def definir_carga_termica(self, **kwargs):
-        """Introdução das cargas no elemento"""
+        """Introdução da variação da temperatura no elemento"""
         # variação de temperatura em todo o elemento
         self.__dTemp = dict()
         for dTemp, T in kwargs.items():
             if dTemp in self.__var_temperatura:
-                if dTemp == "dT" and isinstance(T, (int, float)):
-                    # variação de termperatura uniforme na seção (apenas para treliças)
-                    self.__dTemp["dT"] = T
-
-                elif dTemp != "dT" and isinstance(T, (int, float)):
-                    # variação de temperatura uniforme (linear) na direção de um dos eixos da seção transversal (não é válido para treliças)
-                    self.__dTemp[dTemp] = (T, T)
-
-                elif dTemp != "dT" and len(T) == 2:
-                    # variação de temperatura não uniforme (linear) na direção de um dos eixos da seção transversal (não é válido para treliças)
-                    self.__dTemp[dTemp] = tuple(T)
+                if isinstance(T, (int, float)):
+                    # variação de termperatura uniforme na seção transversal
+                    self.__dTemp[dTemp] = T
 
                 else:
                     raise ValueError(
-                        f"A variação de tempertaura {dTemp} tem formato incorreto"
+                        f"A variação de tempertaura {dTemp} tem formato incorreto: {T}"
                     )
             else:
                 raise ValueError(
