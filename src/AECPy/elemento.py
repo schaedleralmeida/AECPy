@@ -36,7 +36,7 @@ class Elemento:
             "carga": "w1",
             "rep": axial.rep_w1,
             "rel_w": axial.rel_w1,
-            "dTemp": "dTm",
+            "dTemp": "dT0",
             "rep_dT": axial.rep_T,
             "rel_dT": axial.rel_T,
         },
@@ -56,7 +56,7 @@ class Elemento:
             "carga": "w3",
             "rep": flexao.rep_w3,
             "rel_w": flexao.rel_w3,
-            "dTemp": "dTv3",
+            "dTemp": "dT3",
             "rep_dT": flexao.rep_T3,
             "rel_dT": flexao.rel_T3,
         },
@@ -66,7 +66,7 @@ class Elemento:
             "carga": "w2",
             "rep": flexao.rep_w2,
             "rel_w": flexao.rel_w2,
-            "dTemp": "dTv2",
+            "dTemp": "dT2",
             "rep_dT": flexao.rep_T2,
             "rel_dT": flexao.rel_T2,
         },
@@ -95,21 +95,21 @@ class Elemento:
             cls.__partes = {"ax": [0, 2]}
             cls.__cargas_locais = tuple()
             cls.__cargas_globais = tuple()
-            cls.__var_temperatura = ("dT",)
+            cls.__var_temperatura = ("dT0",)
 
         elif tipo == "TE":  # elemento de treliça espacial
             cls.__R_ord = None
             cls.__partes = {"ax": [0, 3]}
             cls.__cargas_locais = tuple()
             cls.__cargas_globais = tuple()
-            cls.__var_temperatura = ("dT",)
+            cls.__var_temperatura = ("dT0",)
 
         elif tipo == "PP":  # elemento de pórtico plano
             cls.__R_ord = ([0, 1, 2], [0, 2, 1])  # (u1,u2,r3) = R (ux,uz,ry)
             cls.__partes = {"ax": [0, 3], "b3": [1, 2, 4, 5]}
             cls.__cargas_locais = ("w1", "w2")
             cls.__cargas_globais = ("wx", "wz")
-            cls.__var_temperatura = ("dT2",)
+            cls.__var_temperatura = ("dT0", "dT2")
 
         elif tipo == "GR":  # elemento de grelha
             cls.__R_ord = ([1, 0, 2], [2, 0, 1])  # (u2,r1,r3) = R (uz,rx,ry)
@@ -128,7 +128,7 @@ class Elemento:
             }
             cls.__cargas_locais = ("w1", "w2", "w3")
             cls.__cargas_globais = ("wx", "wy", "wz")
-            cls.__var_temperatura = ("dT2", "dT3")
+            cls.__var_temperatura = ("dT0", "dT2", "dT3")
 
         cls.__tipo = tipo
         cls.__cargas_permitidas = cls.__cargas_globais + cls.__cargas_locais
@@ -309,26 +309,18 @@ class Elemento:
         return
 
     def definir_carga_termica(self, **kwargs):
-        """Introdução das cargas no elemento"""
+        """Introdução da variação da temperatura no elemento"""
         # variação de temperatura em todo o elemento
         self.__dTemp = dict()
         for dTemp, T in kwargs.items():
             if dTemp in self.__var_temperatura:
-                if dTemp == "dT" and isinstance(T, (int, float)):
-                    # variação de termperatura uniforme na seção (apenas para treliças)
-                    self.__dTemp["dT"] = T
-
-                elif dTemp != "dT" and isinstance(T, (int, float)):
-                    # variação de temperatura uniforme (linear) na direção de um dos eixos da seção transversal (não é válido para treliças)
-                    self.__dTemp[dTemp] = (T, T)
-
-                elif dTemp != "dT" and len(T) == 2:
-                    # variação de temperatura não uniforme (linear) na direção de um dos eixos da seção transversal (não é válido para treliças)
-                    self.__dTemp[dTemp] = tuple(T)
+                if isinstance(T, (int, float)):
+                    # variação de termperatura uniforme na seção transversal
+                    self.__dTemp[dTemp] = T
 
                 else:
                     raise ValueError(
-                        f"A variação de tempertaura {dTemp} tem formato incorreto"
+                        f"A variação de tempertaura {dTemp} tem formato incorreto: {T}"
                     )
             else:
                 raise ValueError(
@@ -378,42 +370,12 @@ class Elemento:
 
         return carga_total
 
-    def carga_termica(self):
-        cTemp = dict()
-        if "dT" in self.dTemp:
-            if self.dTemp["dT"] != 0:
-                cTemp["dTm"] = self.dTemp["dT"]
-
-        if "dT2" in self.dTemp:
-            dT2 = self.dTemp["dT2"]
-            dT2_medio = (dT2[1] + dT2[0]) / 2
-            dT2_var = (dT2[1] - dT2[0]) / 2
-            if dT2_medio != 0:
-                cTemp["dTm"] = dT2_medio
-            if dT2_var != 0:
-                cTemp["dTv2"] = dT2_var
-
-        if "dT3" in self.dTemp:
-            dT3 = self.dTemp["dT3"]
-            dT3_medio = (dT3[1] + dT3[0]) / 2
-            dT3_var = (dT3[1] - dT3[0]) / 2
-            if dT3_medio != 0:
-                if "dT2" in self.dTemp:
-                    cTemp["dTm"] = (dT2_medio + dT3_medio) / 2
-                else:
-                    cTemp["dTm"] = dT3_medio
-
-            if dT2_var != 0:
-                cTemp["dTv3"] = dT3_var
-
-        return cTemp
 
     def rep(self):
         """Calcula as reações de engastamento perfeito das cargas nos elementos"""
 
         rep = np.zeros(self.ngdl)
         carga_total = self.carga_total()
-        cTemp = self.carga_termica()
 
         # <<<<< atenação --- programar para treliças ---- >>>>>
         for prt, il in self.__partes.items():
@@ -425,8 +387,8 @@ class Elemento:
 
             dTemp = self.__parte_rigidez[prt]["dTemp"]
             calc_rep_dT = self.__parte_rigidez[prt]["rep_dT"]
-            if calc_rep_dT is not None and dTemp in cTemp:
-                dT = cTemp[dTemp]
+            if calc_rep_dT is not None and dTemp in self.__dTemp:
+                dT = self.__dTemp[dTemp]
                 rep[il] += calc_rep_dT(self.L, self.sec, dT)
 
         return rep
@@ -440,7 +402,6 @@ class Elemento:
         pmm.check_xi(xi)
 
         carga_total = self.carga_total()
-        cTemp = self.carga_termica()
 
         # esforços e deslocamentos no elemento
         for prt, il in self.__partes.items():
@@ -461,8 +422,8 @@ class Elemento:
             # esforços e deslocamentos no elemento devido à variação de temperatura
             calc_rel_dT = self.__parte_rigidez[prt]["rel_dT"]
             dTemp = self.__parte_rigidez[prt]["dTemp"]
-            if calc_rel_dT is not None and dTemp in cTemp:
-                dT_prt = cTemp[dTemp]
+            if calc_rel_dT is not None and dTemp in self.__dTemp:
+                dT_prt = self.__dTemp[dTemp]
                 rel_dT = calc_rel_dT(xi, self.sec, self.L, dT_prt)
             else:
                 rel_dT = None

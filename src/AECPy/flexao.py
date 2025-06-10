@@ -110,16 +110,14 @@ def rel_w2(xi, S, L, w2):
 
 
 def rep_T2(L, S, dT):
-    """Reações de engastamento perfeito pela variação de temperatura na direção do eixo 2 da seção transversal da barra"""
-    # obs: dT é a variação da temperatura do centroide à face superior ( perpendicular ao eixo 2)
-    return dT * S.mat.cdt * S.mat.E * S.W3 * np.array([0, -1, 0, 1])
+    """ Reações de engastamento perfeito pela variação de temperatura na direção do eixo 2 da seção transversal da barra. \n dT é a taxa de variação da temperatura na direção do eixo 2. """
+    return dT * S.mat.cdt * S.mat.E * S.I3 * np.array([0, -1, 0, 1])
 
 
 def rel_T2(xi, S, L, dT):
     """Deslocamentos e esforços no ponto de coordenada adimensional xi
-    no elemento calculados em função dos efeitos locais da variação de temperatura na direção do eixo 2 da seção transversal da barra"""
-    # obs: dT é a variação da temperatura do centroide à face superior ( perpendicular ao eixo 2)
-    return {"M3": dT * S.mat.cdt * S.mat.E * S.W3 * xi**0}
+    no elemento calculados em função dos efeitos locais da variação de temperatura na direção do eixo 2 da seção transversal da barra. \n dT é a taxa de variação da temperatura na direção do eixo 2. """
+    return {"M3": dT * S.mat.cdt * S.mat.E * S.I3 * xi**0}
 
 
 # -----------------------------------------------------------
@@ -229,13 +227,11 @@ def rel_w3(xi, S, L, w3):
 
 
 def rep_T3(L, S, dT):
-    """Reações de engastamento perfeito pela variação de temperatura na direção do eixo 3 da seção transversal da barra"""
-    # obs: dT é a variação da temperatura do centroide à face superior ( perpendicular ao eixo 3)
-    return dT * S.mat.cdt * S.mat.E * S.W2 * np.array([0, 1, 0, -1])
+    """ Reações de engastamento perfeito pela variação de temperatura na direção do eixo 3 da seção transversal da barra. \n dT é a taxa de variação da temperatura na direção do eixo 3. """
+    return dT * S.mat.cdt * S.mat.E * S.I2 * np.array([0, 1, 0, -1])
 
 
 def rel_T3(xi, S, L, dT):
     """Deslocamentos e esforços no ponto de coordenada adimensional xi
-    no elemento calculados em função dos efeitos locais da variação de temperatura na direção do eixo 3 da seção transversal da barra"""
-    # obs: dT é a variação da temperatura do centroide à face superior ( perpendicular ao eixo 3)
-    return {"M2": dT * S.mat.cdt * S.mat.E * S.W2 * xi**0}
+    no elemento calculados em função dos efeitos locais da variação de temperatura na direção do eixo 3 da seção transversal da barra. \n dT é a taxa de variação da temperatura na direção do eixo 3. """
+    return {"M2": dT * S.mat.cdt * S.mat.E * S.I2 * xi**0}
