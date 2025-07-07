@@ -1,35 +1,3 @@
-def transformar_grafico_2d(ax, angulo_graus=0, dx=0, dz=0):
-    """
-    Rotaciona e translada todos os dados de um gráfico 2D (ax) em torno da origem.
-
-    Parâmetros
-    ----------
-    ax : matplotlib.axes.Axes
-        O eixo do gráfico a ser transformado.
-    angulo_graus : float
-        Ângulo de rotação em graus (anti-horário).
-    dx : float
-        Translação no eixo x.
-    dz : float
-        Translação no eixo z.
-    """
-    import numpy as np
-    from matplotlib.transforms import Affine2D
-
-    # Cria a matriz de transformação
-    t = Affine2D()
-    t.rotate_deg(angulo_graus)
-    t.translate(dx, dz)
-
-    # Aplica a transformação a todos os artistas do eixo
-    for artist in ax.get_children():
-        if hasattr(artist, 'set_transform'):
-            # Mantém as transformações anteriores e aplica a nova
-            artist.set_transform(t + artist.get_transform())
-
-    # Atualiza os limites do gráfico
-    ax.autoscale_view()
-    ax.figure.canvas.draw_idle()
 """
 Este módulo implementa funções para gerar gráficos para
 visualização de resuntados na análise estrutural pelo AECPy
