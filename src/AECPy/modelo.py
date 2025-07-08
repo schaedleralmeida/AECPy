@@ -49,7 +49,7 @@ def numerar_gdls(nos: list[No]) -> int:
         nos[n].igdl = igdl
 
     return ngdlF
-
+    
 
 def construir_SEL(
     nos: list[No], els: list[Elemento], ngdl: int
@@ -78,7 +78,7 @@ def construir_SEL(
         pmm.espalhar(K_el_global, K , igdl)
 
         # Fornas nodais equivalentes em elementos carregados
-        if el.carregado or el.variacao_termica: # or el.def_ini:
+        if el.carregado or el.variacao_termica or el.inclui_peso_proprio: # or el.def_ini:
             # Reações de engastamento perfeito (rep) em coordenadas locais
             rep_el_local = el.rep()
             # rep em coordenadas globais
