@@ -172,3 +172,5 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+exemplos/Trabalho2_GabrielHubertSilva.ipynb
+exemplos/portico_plano_01.py

@@ -31,12 +31,14 @@ nos[2] = aec.No([8.0e3, 0.0])
 nos[0].definir_apoio('todos')
 nos[2].definir_apoio('todos')
 ang = radians(-45)
-nos[1].definir_carga(fx=( 100 * cos(ang)) , fz = ( 100 * sin(ang)), my = -50.e3)
+nos[1].definir_carga(fx=( 100 * cos(ang)) , fz = ( 100 * sin(ang)), my = -80)
 
 #elementos:
 els = [aec.Elemento(nos[0], nos[1], sec_ab)] * 2
 els[0] = aec.Elemento(nos[0], nos[1], sec_ab)
 els[1] = aec.Elemento(nos[1], nos[2], sec_bc)
+
+els[0].definir_carga(wz= -10.0e3)  # carga distribuída no elemento 0
 
 
 # Análise
@@ -68,9 +70,23 @@ print(tab)
 
 
 print('\n O diagrama de deslocamento transversal, momento e força cortante no elemento 0 são:')
-fig = aec.graficos.diagramas(res_els[0], ['u2', 'M3', 'V2'], uni, eltag=0)
+fig = aec.graficos.diagramas(res_els[0], ['N', 'M3', 'V2'], uni, eltag=0)
 
 
 
-print('Representação do modelo:')
-fig_modelo = aec.graficos.modelo_2d(nos, els)
+# print('Representação do modelo:')
+# fig_modelo = aec.graficos.modelo_2d(nos, els)
+
+print('\nRepresentação com o momento fletor:')
+fig_modelo = aec.graficos.modelo_2d(nos, els, res_els,"fletor",False)
+
+print('\nRepresentação com o cortante:')
+fig_modelo = aec.graficos.modelo_2d(nos, els, res_els,"cortante")
+
+print('\nRepresentação com a normal:')
+fig_modelo = aec.graficos.modelo_2d(nos, els, res_els,"normal")
+
+print(els[1].carga)
+
+import matplotlib.pyplot as plt
+plt.show(block=True)
