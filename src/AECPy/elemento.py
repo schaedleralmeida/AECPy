@@ -136,10 +136,12 @@ class Elemento:
     @classmethod
     def incluir_peso_proprio(cls, incluir):
         """Define a inclusão do peso próprio no carregamento do elemento"""
-        if isinstance(incluir, bool):
-            cls.__incluir_peso_proprio = incluir
+        
+        if not isinstance(incluir, bool):
+            raise TypeError("incluir deve ser do tipo bool")
         else:
-            raise ValueError("incluir deve ser bool")
+            cls.__incluir_peso_proprio = incluir
+
 
     def __init__(self, noI, noJ, sec) -> None:
         if (not isinstance(noI, No)) or (not isinstance(noJ, No)):
@@ -209,6 +211,13 @@ class Elemento:
     def carregado(self):
         return len(self.__carga) > 0
 
+    @property
+    def inclui_peso_proprio(self):
+        """
+        Indica se o peso próprio do elemento é incluído no carregamento
+        """
+        return self.__incluir_peso_proprio
+    
     @property
     def dTemp(self):
         return self.__dTemp
@@ -377,7 +386,16 @@ class Elemento:
         rep = np.zeros(self.ngdl)
         carga_total = self.carga_total()
 
-        # <<<<< atenação --- programar para treliças ---- >>>>>
+        #caso especial para treliças
+        if self.__tipo.startswith("T") and self.inclui_peso_proprio:
+            R = pmm.R3D(self.e1_3D)
+            ff = R @ np.array([0, 0, self.sec.peso_unitario * self.L/2])
+            if self.ndim == 2:
+                return np.concatenate((ff[:2],ff[:2]))
+            else:
+                return np.concatenate((ff,ff))
+        
+        #para outros lementos
         for prt, il in self.__partes.items():
             carga = self.__parte_rigidez[prt]["carga"]
             calc_rep = self.__parte_rigidez[prt]["rep"]
