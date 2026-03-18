@@ -1,6 +1,9 @@
 # AECPy
 **A**nálise **E**strutural por **C**omputador em **Py**thon.
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19101485.svg)](https://doi.org/10.5281/zenodo.19101485)
+
+
 ## Sobre
 
 Este pacote foi desenvolvido como uma ferramenta educacional para a disciplina *ENG01007 - **A**nálie **E**strutural por **C**omputador* que é oferecida pelo [**Departamento de Engenharia Civil**](https://www.ufrgs.br/deciv/) da [**Universidade Federal do Rio Grande do Sul**](http://www.ufrgs.br).
