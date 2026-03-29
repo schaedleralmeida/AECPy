@@ -287,11 +287,9 @@ def modelo_3d(nos, els):
 
     return fig
 
-
-
-def modelo_2d(nos, els):
+def modelo_2d(nos, els, res_els=None, tipo_diagrama=None, mostra_forcas=True):
     """
-    Cria uma figura para a visualização 2D do modelo estrutural
+    Cria uma figura para a visualização 2D do modelo estrutural e, opcionalmente, de diagramas de esforços.
 
     Parâmetros
     ----------
@@ -299,8 +297,13 @@ def modelo_2d(nos, els):
         Nós do modelo
     els: list (of Elemento)
         Elementos do modelo
+    res_els: list (of dict), opcional
+        Resultados dos elementos (para diagramas de esforços)
+    tipo_diagrama: str, opcional
+        Tipo de diagrama a desenhar: 'fletor', 'cortante', 'normal' ou None
+    mostra_forcas: bool, opcional
+        Se True, desenha as forças aplicadas nos nós
     """
-
     if nos[0].ndim != 2:
         raise ValueError("O modelo estrutural não é 2D")
 
@@ -320,17 +323,15 @@ def modelo_2d(nos, els):
 
     fig = plt.figure(figsize=[10, 10])
     ax = fig.add_subplot(xlabel="x", ylabel="z")
-    
     Dz = np.ptp(z)
     Dx = np.ptp(x)
     if Dz == 0: Dz =0.1*Dx
     if Dx == 0: Dx = 0.1*Dz 
 
     ax.set_box_aspect( Dz / Dx )
-    
+
     # desenhando os elementos
     estilo_els_mod = dict(estilo_elementos)
-    i = 0
     secoes = set()
     for el in els:
         secoes.add(el.sec)
@@ -346,8 +347,56 @@ def modelo_2d(nos, els):
         estilo_els_mod["color"] = legenda_sec[i][0]
         ax.plot(x_el, z_el, **estilo_els_mod)
 
+    # Desenhar diagramas de esforços, se solicitado
+    if tipo_diagrama is not None and res_els is not None:
+        xlim = ax.get_xlim()
+        zlim = ax.get_ylim()
+        Dx = xlim[1] - xlim[0]
+        Dz = zlim[1] - zlim[0]
+        escala = 0.1 * min(Dx, Dz)
+        if tipo_diagrama == 'fletor':
+            chave = 'M3'
+            cor = '#C54E4E'
+        elif tipo_diagrama == 'cortante':
+            chave = 'V2'
+            cor = '#312EC9'
+        elif tipo_diagrama == 'normal':
+            chave = 'N'
+            cor = '#55CF88'
+        else:
+            raise ValueError("tipo_diagrama deve ser 'fletor', 'cortante', 'normal' ou None")
+
+        # Encontrar o maior valor absoluto para normalizar
+        max_x = max(max(abs(res_el[chave])) for res_el in res_els)
+        for i, el in enumerate(els):
+            x_m = res_els[i]['x']
+            z_m = res_els[i][chave] * escala / max_x
+            x_r, z_r = rotacionar_dados_vetor(x_m, z_m, el.e1, x0=0, z0=0)
+            x_rt, z_rt = transladar_dados(x_r, z_r, dx=el.noI.x, dz=el.noI.z)
+            estilo_els_mod["color"] = cor
+            estilo_els_mod["linewidth"] = 4
+            ax.plot(x_rt, z_rt, **estilo_els_mod)
+
+            # Linhas tracejadas conectando extremos
+            x_d = [el.noI.x, x_rt[0]]
+            z_d = [el.noI.z, z_rt[0]]
+            ax.plot(x_d, z_d, linestyle='dashed', color=cor)
+            x_d = [el.noJ.x, x_rt[-1]]
+            z_d = [el.noJ.z, z_rt[-1]]
+            ax.plot(x_d, z_d, linestyle='dashed', color=cor)
+
     # desenhando os nós
     ax.scatter(x, z, **estilo_nos)
+
+    xlim = ax.get_xlim()
+    zlim = ax.get_ylim()
+    Dx = xlim[1] - xlim[0]
+    Dz = zlim[1] - zlim[0]
+    escala_seta = 0.1 * min(Dx, Dz)
+
+    if mostra_forcas:
+        for no in nos:
+            desenhar_forcas_no(ax, no, escala_seta)
 
     patches = [mpatches.Patch(color=s[0], label=s[1]) for s in legenda_sec]
     ax.legend(handles=patches)
@@ -431,3 +480,129 @@ def unir_rel(res_els:list[dict]) -> dict:
            res_uni[key] = np.concatenate((res_uni[key], val))
 
     return res_uni
+
+def desenhar_forcas_no(ax, no, escala_seta):
+    """
+    Desenha setas de forças e arcos de momento aplicados em um nó no gráfico ax.
+
+    Parâmetros
+    ----------
+    ax : matplotlib.axes.Axes
+        Eixo onde desenhar.
+    no : objeto No
+        Nó com atributos .x, .z, .p e .info()['forças globais'].
+    escala_seta : float
+        Escala para o tamanho das setas/arcos.
+    """
+    if hasattr(no, 'p') and len(no.p) > 0:
+        for i, forca in enumerate(no.info()['forças globais']):
+            if no.p[i] != 0:
+                x0 = no.x
+                z0 = no.z
+                # Desenha seta para força fx ou fz
+                if forca == 'fx' or forca == 'fz':
+                    if forca == 'fx':
+                        # Seta na direção x
+                        x1 = x0 + escala_seta
+                        z1 = z0
+                        x2 = x1
+                        z2 = z1
+                    elif forca == 'fz':
+                        # Seta na direção z
+                        x1 = x0
+                        z1 = z0 + escala_seta
+                        x2 = x0 + escala_seta/2
+                        z2 = z0 + escala_seta/2
+
+                    # Desenha a seta no gráfico
+                    ax.annotate('', xy=(x0, z0), xytext=(x1, z1),
+                        arrowprops=dict(facecolor='black', shrink=0.05, width=2, headwidth=8),
+                        annotation_clip=False)
+                    # Adiciona o valor da força como texto próximo à seta
+                    ax.annotate(f'{forca} = {-1*no.p[i]:.2f}', xy=(x0, z0), xytext=(x2, z2),
+                        annotation_clip=False)
+
+                # Desenha arco e seta para momento my
+                elif forca == 'my':
+                    import matplotlib.patches as mpatches
+                    # Calcula pontos para desenhar o arco e a seta do momento
+                    x2 = x0 + escala_seta * np.cos(np.radians(70))/2
+                    z2 = z0 + escala_seta * np.sin(np.radians(70))/2
+                    x3 = x0 + escala_seta * np.cos(np.radians(30))/2
+                    z3 = z0 + escala_seta * np.sin(np.radians(30))/2
+                    x1 = x0 + escala_seta/2
+                    z1 = z0 - escala_seta/2
+
+                    # Desenha o arco representando o momento
+                    arc = mpatches.Arc((x0, z0), escala_seta, escala_seta, angle=0, theta1=215, theta2=30,
+                                    color='black', linewidth=2, linestyle='-')
+                    ax.add_patch(arc)
+
+                    # Desenha a seta na extremidade do arco
+                    ax.annotate('', xy=(x2, z2), xytext=(x3, z3),
+                                arrowprops=dict(facecolor='black', shrink=0.05, width=2, headwidth=8),
+                                annotation_clip=False)
+                    # Adiciona o valor do momento como texto próximo ao arco
+                    ax.annotate(f'{forca} = {no.p[i]:.2f}', xy=(x1, z1),
+                            annotation_clip=False)
+
+def rotacionar_dados_vetor(x, z, v_unit, x0=0, z0=0):
+    """
+    Rotaciona uma série de dados (x, z) em torno do ponto (x0, z0) pelo ângulo entre o vetor unitário v_unit e a horizontal (eixo x), no sentido anti-horário.
+
+    Parâmetros
+    ----------
+    x : array-like
+        Coordenadas x dos pontos.
+    z : array-like
+        Coordenadas z dos pontos.
+    v_unit : array-like
+        Vetor unitário (vx, vz) que define o ângulo de rotação em relação à horizontal.
+    x0, z0 : float, optional
+        Centro de rotação. Padrão é a origem (0,0).
+
+    Retorna
+    -------
+    x_rot, z_rot : np.ndarray
+        Novas coordenadas rotacionadas.
+    """
+    x = np.asarray(x)
+    z = np.asarray(z)
+    vx, vz = v_unit
+    # Calcula o ângulo entre o vetor e a horizontal (eixo x)
+    ang_rad = np.arctan2(vz, vx)
+    # Translada para a origem
+    x_t = x - x0
+    z_t = z - z0
+    # Matriz de rotação
+    cos_a = np.cos(ang_rad)
+    sin_a = np.sin(ang_rad)
+    x_rot = cos_a * x_t - sin_a * z_t + x0
+    z_rot = sin_a * x_t + cos_a * z_t + z0
+    return x_rot, z_rot
+
+def transladar_dados(x, z, dx=0, dz=0):
+    """
+    Translata uma série de dados (x, z) por (dx, dz).
+
+    Parâmetros
+    ----------
+    x : array-like
+        Coordenadas x dos pontos.
+    z : array-like
+        Coordenadas z dos pontos.
+    dx : float, optional
+        Deslocamento em x. Padrão é 0.
+    dz : float, optional
+        Deslocamento em z. Padrão é 0.
+
+    Retorna
+    -------
+    x_t, z_t : np.ndarray
+        Novas coordenadas transladadas.
+    """
+    x = np.asarray(x)
+    z = np.asarray(z)
+    x_t = x + dx
+    z_t = z + dz
+    return x_t, z_t
