@@ -4,6 +4,7 @@ pelo Método da Rigidez Direta (MRD) no AECPy
 """
 
 import numpy as np
+from numbers import Integral, Real
 
 
 class NoBase:
@@ -13,8 +14,17 @@ class NoBase:
     os graus de liberdade e componentes de força disponíveis no nó.
     """
 
-    _tipo_numero = (int, float, np.int32, np.float64)
-    _tipo_numero_inteiro = (int, np.int32)
+    @staticmethod
+    def _eh_numero(valor) -> bool:
+        return isinstance(valor, Real) and not isinstance(valor, bool)
+
+    @staticmethod
+    def _eh_inteiro_natural(valor) -> bool:
+        return (
+            isinstance(valor, Integral)
+            and not isinstance(valor, bool)
+            and valor >= 0
+        )
 
     # atributos do tipo estrutural (definidos em subclasses)
     tipo = ""
@@ -34,7 +44,7 @@ class NoBase:
             )
         if len(coor) != self.ndim:
             raise ValueError("Número incorreto de coordenadas")
-        if not all([isinstance(c, self._tipo_numero) for c in coor]):
+        if not all([self._eh_numero(c) for c in coor]):
             raise TypeError("As coordenadas devem ser números")
 
         # atributos de instância
@@ -71,7 +81,7 @@ class NoBase:
             raise ValueError("O número de gdl está incorreto")
         if not all(
             [
-                (isinstance(i, self._tipo_numero_inteiro) and i >= 0)
+                self._eh_inteiro_natural(i)
                 for i in ig
             ]
         ):
@@ -148,7 +158,7 @@ class NoBase:
 
         for gdl, valor in valores.items():
             self.idl(gdl)
-            if not isinstance(valor, self._tipo_numero):
+            if not self._eh_numero(valor):
                 raise TypeError(
                     f"O valor do deslocamento prescrito em '{gdl}' deve ser numérico"
                 )
@@ -182,7 +192,7 @@ class NoBase:
 
         for gdl, valor in valores.items():
             self.idl(gdl)
-            if not isinstance(valor, self._tipo_numero):
+            if not self._eh_numero(valor):
                 raise TypeError(
                     f"O valor do apoio elástico em '{gdl}' deve ser numérico"
                 )
@@ -215,7 +225,7 @@ class NoBase:
         elif isinstance(valores, (list, tuple, np.ndarray)):
             if len(valores) != len(self.forcas_globais):
                 raise ValueError("O vetor de carga tem comprimento incorreto")
-            if not all(isinstance(valor, self._tipo_numero) for valor in valores):
+            if not all(self._eh_numero(valor) for valor in valores):
                 raise TypeError("Os valores da carga devem ser numéricos")
             nova_carga = dict(zip(self.forcas_globais, valores))
         else:
@@ -225,7 +235,7 @@ class NoBase:
 
         for forca, valor in nova_carga.items():
             self.ifl(forca)
-            if not isinstance(valor, self._tipo_numero):
+            if not self._eh_numero(valor):
                 raise TypeError(
                     f"O valor da carga '{forca}' deve ser numérico"
                 )
