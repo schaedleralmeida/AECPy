@@ -7,21 +7,10 @@ import numpy as np
 
 
 class NoBase:
-    """
-    Classe base para nós em análise estrutural pelo Método da Rigidez Direta no AECPy
+    """Classe base de nó para modelos estruturais via Método da Rigidez Direta.
 
-    Atributes
-    ---------
-    coor: numpy.ndarray
-        Coordenadas que definem a posição do nó no modelo estrutural
-
-    ngdl: int
-        Número de graus de liberdade (gdl) do nó
-    igdl: tuple (int)
-        Índices globais dos gdl do nó
-    gdlr: tuble (bool)
-        Indicador dos gdl do nó com restrições ao deslocamento por apoios
-    x, y, z
+    Cada subclasse define o tipo de modelo (PP, PE, TP, TE, GR), incluindo
+    os graus de liberdade e componentes de força disponíveis no nó.
     """
 
     _tipo_numero = (int, float, np.int32, np.float64)
@@ -58,22 +47,22 @@ class NoBase:
 
     @property
     def x(self):
-        """Coordenada x global do nó no modelo estrutural"""
+        """Coordenada global x do nó."""
         return self.coor[0]
 
     @property
     def y(self):
-        """Coordenada y global do nó no modelo estrutural"""
+        """Coordenada global y (quando o modelo possui eixo y)."""
         return self.coor[self.eixos_globais.index("y")]
 
     @property
     def z(self):
-        """Coordenada z global do nó no modelo estrutural"""
+        """Coordenada global z (quando o modelo possui eixo z)."""
         return self.coor[self.eixos_globais.index("z")]
 
     @property
     def igdl(self):
-        """Índice global dos graus de liberdade do nó"""
+        """Índices globais dos graus de liberdade do nó no sistema montado."""
         return list(self._igdl)
 
     @igdl.setter
@@ -92,38 +81,35 @@ class NoBase:
         self._igdl = tuple(ig)
 
     def idl(self, deslocamento):
-        """Retorna o índice local do deslocamento no nó."""
+        """Retorna o índice local de um deslocamento (ex.: ux, uz, ry)."""
         if deslocamento not in self.gdls_globais:
             raise ValueError(f"Deslocamento inválido: {deslocamento}")
         return self.gdls_globais.index(deslocamento)
 
     def idg(self, deslocamento):
-        """Retorna o índice global do deslocamento no nó."""
+        """Retorna o índice global do deslocamento para o nó atual."""
         return self._igdl[self.idl(deslocamento)]
 
     def ifl(self, forca):
-        """Retorna o índice local da força no nó."""
+        """Retorna o índice local de uma componente de força/momento."""
         if forca not in self.forcas_globais:
             raise ValueError(f"Força inválida: {forca}")
         return self.forcas_globais.index(forca)
 
     def ifg(self, forca):
-        """Retorna o índice global da força no nó."""
+        """Retorna o índice global da componente de força/momento no nó."""
         return self._igdl[self.ifl(forca)]
 
     @property
     def deslocamentos_nulos(self):
-        """Nomes dos gdl com apoios (deslocamentos nulos)."""
+        """Deslocamentos com valor nulo por apoio (ex.: ['ux', 'uz'])."""
         return list(self.__deslocamentos_nulos)
 
     @deslocamentos_nulos.setter
     def deslocamentos_nulos(self, valores):
-        """Define quais gdl têm deslocamentos nulos (apoios).
-        
-        Parâmetros
-        ----------
-        valores : list, tuple ou similar
-            Nomes dos gdl com apoios. Deve conter apenas valores em self.gdls_globais.
+        """Define deslocamentos nulos por gdl.
+
+        Exemplo: ['ux', 'uz']; use None para limpar os apoios.
         """
         if valores is None:
             self.__deslocamentos_nulos = ()
@@ -140,18 +126,17 @@ class NoBase:
 
     @property
     def deslocamentos_prescritos(self):
-        """Dicionário com os deslocamentos prescritos no nó."""
+        """Dicionário de deslocamentos prescritos por gdl.
+
+        Exemplo: {'ux': 0.002, 'ry': -1e-3}
+        """
         return dict(self.__deslocamentos_prescritos)
 
     @deslocamentos_prescritos.setter
     def deslocamentos_prescritos(self, valores):
-        """Define os deslocamentos prescritos no nó.
+        """Define deslocamentos prescritos por gdl.
 
-        Parâmetros
-        ----------
-        valores : dict
-            Dicionário em que cada chave é um gdl em self.gdls_globais e cada
-            valor é um número correspondente ao deslocamento prescrito.
+        Exemplo: {'ux': 0.002, 'ry': -1e-3}; use None para limpar.
         """
         if valores is None:
             self.__deslocamentos_prescritos = {}
@@ -175,18 +160,17 @@ class NoBase:
 
     @property
     def apoio_elastico(self):
-        """Dicionário com os apoios elásticos no nó."""
+        """Dicionário de apoios elásticos por gdl.
+
+        Cada entrada associa um gdl à sua rigidez de mola equivalente.
+        """
         return dict(self.__apoio_elastico)
 
     @apoio_elastico.setter
     def apoio_elastico(self, valores):
-        """Define os apoios elásticos no nó.
+        """Define rigidezes de apoio elástico por gdl.
 
-        Parâmetros
-        ----------
-        valores : dict
-            Dicionário em que cada chave é um gdl em self.gdls_globais e cada
-            valor é um número correspondente à rigidez do apoio elástico.
+        Exemplo: {'ux': 1.0e5, 'ry': 2.5e6}; use None para limpar.
         """
         if valores is None:
             self.__apoio_elastico = {}
@@ -210,20 +194,17 @@ class NoBase:
 
     @property
     def carga(self):
-        """Dicionário com as cargas nodais externas."""
+        """Cargas nodais externas por componente global.
+
+        Exemplo: {'fx': 10.0, 'my': -5.0}
+        """
         return dict(self.__carga)
 
     @carga.setter
     def carga(self, valores):
-        """Define as cargas nodais externas.
+        """Define carregamento nodal por dicionário ou vetor.
 
-        Parâmetros
-        ----------
-        valores : dict, list, tuple, numpy.ndarray ou None
-            `None` limpa as cargas.
-            Um dicionário deve usar chaves em self.forcas_globais.
-            Um vetor com comprimento igual a len(self.forcas_globais) é convertido
-            para um dicionário seguindo a ordem de self.forcas_globais.
+        Exemplo: {'fx': 10.0, 'my': -5.0} ou [10.0, 0.0, -5.0]; use None para limpar.
         """
         if valores is None:
             self.__carga = {}
@@ -253,17 +234,17 @@ class NoBase:
 
     @property
     def p(self):
-        """Vetor de cargas nodais externas na ordem de forcas_globais."""
+        """Vetor de cargas nodais na ordem padrão de `forcas_globais`."""
         return np.array([
             self.__carga.get(forca, 0.0)
             for forca in self.forcas_globais
         ])
 
     def _check_cc(self):
-        """
-        Levanta exceção se há mais de uma condição de contorno do tipo
-        "restrito", "prescrito" ou "apoio elástico", definida simultaneamente
-        para um deslocamento no nó
+        """Valida conflitos entre condições de contorno no nó.
+
+        Um mesmo gdl não pode ser simultaneamente nulo e prescrito,
+        nem nulo e elástico.
         """
         desloc_nulos = set(self.deslocamentos_nulos)
         desloc_prescritos = set(self.deslocamentos_prescritos.keys())
@@ -278,6 +259,7 @@ class NoBase:
             )
 
     def __str__(self):
+        """Resumo textual do nó para inspeção rápida em debug/print."""
         linhas = []
 
         coords = ", ".join(
@@ -302,6 +284,7 @@ class NoBase:
         return "\n".join(linhas)
 
     def __repr__(self):
+        """Representação curta para recriar o nó com as coordenadas."""
         coor = [float(c) for c in self.coor]
         return f"{self.__class__.__name__}({coor})"
 
