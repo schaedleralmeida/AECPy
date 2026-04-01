@@ -3,8 +3,9 @@ Módulo para definição dos nós na análise estrutural
 pelo Método da Rigidez Direta (MRD) no AECPy
 """
 
-import numpy as np
 from numbers import Integral, Real
+
+import numpy as np
 
 
 class NoBase:
@@ -40,7 +41,7 @@ class NoBase:
     def __init__(self, coor) -> None:
         if self.ndim <= 0 or self.ngdl <= 0:
             raise TypeError(
-                "A classe NoBase é base. Use uma subclasse como No_PE, No_PP, No_TE, No_TP ou No_GR."
+                "A classe NoBase é base. Use uma subclasse como NoPE, NoPP, NoTE, NoTP ou NoGR."
             )
         if len(coor) != self.ndim:
             raise ValueError("Número incorreto de coordenadas")
@@ -299,7 +300,7 @@ class NoBase:
         return f"{self.__class__.__name__}({coor})"
 
 
-class No_PE(NoBase):
+class NoPE(NoBase):
     """Nó para pórtico espacial."""
 
     tipo = "PE"
@@ -312,7 +313,7 @@ class No_PE(NoBase):
     forcas_globais = ("fx", "fy", "fz", "mx", "my", "mz")
 
 
-class No_PP(NoBase):
+class NoPP(NoBase):
     """Nó para pórtico plano."""
 
     tipo = "PP"
@@ -325,7 +326,7 @@ class No_PP(NoBase):
     forcas_globais = ("fx", "fz", "my")
 
 
-class No_TE(NoBase):
+class NoTE(NoBase):
     """Nó para treliça espacial."""
 
     tipo = "TE"
@@ -338,7 +339,7 @@ class No_TE(NoBase):
     forcas_globais = ("fx", "fy", "fz")
 
 
-class No_TP(NoBase):
+class NoTP(NoBase):
     """Nó para treliça plana."""
 
     tipo = "TP"
@@ -351,7 +352,7 @@ class No_TP(NoBase):
     forcas_globais = ("fx", "fz")
 
 
-class No_GR(NoBase):
+class NoGR(NoBase):
     """Nó para grelha."""
 
     tipo = "GR"
@@ -364,5 +365,10 @@ class No_GR(NoBase):
     forcas_globais = ("fz", "mx", "my")
 
 
-# Alias para compatibilidade com código educacional
+# Aliases para compatibilidade com código educacional
 No = NoBase
+No_PE = NoPE
+No_PP = NoPP
+No_TE = NoTE
+No_TP = NoTP
+No_GR = NoGR

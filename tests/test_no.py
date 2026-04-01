@@ -10,7 +10,8 @@ SRC = os.path.join(ROOT, "src")
 if SRC not in sys.path:
     sys.path.insert(0, SRC)
 
-from AECPy.no import NoBase, No_GR, No_PE, No_PP, No_TE, No_TP
+from AECPy.no import NoBase, NoGR, NoPE, NoPP, NoTE, NoTP
+from AECPy.no import No_GR, No_PE, No_PP, No_TE, No_TP  # aliases legados
 
 
 def test_no_base_nao_instanciavel():
@@ -129,12 +130,12 @@ def test_repr_e_str_basicos():
 
     assert "igdl" in s
     assert "carga" in s
-    assert "No_PP([1.0, 2.0])" == r
+    assert "NoPP([1.0, 2.0])" == r
 
 
 def test_subclasses_tipos_esperados():
-    assert No_PE.tipo == "PE"
-    assert No_PP.tipo == "PP"
-    assert No_TE.tipo == "TE"
-    assert No_TP.tipo == "TP"
-    assert No_GR.tipo == "GR"
+    assert NoPE.tipo == "PE"
+    assert NoPP.tipo == "PP"
+    assert NoTE.tipo == "TE"
+    assert NoTP.tipo == "TP"
+    assert NoGR.tipo == "GR"
