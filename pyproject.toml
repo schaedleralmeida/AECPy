@@ -1,24 +1,24 @@
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[project]
+[tool.poetry]
 name = "AECPy"
 version = "0.0.1"
-authors = [
-  { name="Felipe Schaedler de Almeida", email="felipe.alemida@ufrgs.br" },
-]
-description = "Análise estrutural basado no método da rigidez direta"
+description = "Analise estrutural basado no metodo da rigidez direta"
+authors = ["Felipe Schaedler de Almeida <felipe.alemida@ufrgs.br>"]
 readme = "README.md"
-requires-python = ">=3.8"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent",
-    "License :: OSI Approved :: MIT License",
-]
 license = "MIT"
-license-files = ["LICEN[CS]E*"]
+homepage = "https://github.com/schaedleralmeida/AECPy"
+repository = "https://github.com/schaedleralmeida/AECPy"
+packages = [{ include = "AECPy", from = "src" }]
 
-[project.urls]
-Homepage = "https://github.com/schaedleralmeida/AECPy"
-Issues = "https://github.com/schaedleralmeida/AECPy/issues"
+[tool.poetry.dependencies]
+python = ">=3.8,<4.0"
+numpy = "*"
+pandas = "*"
+matplotlib = "*"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "*"
+ruff = "*"
+
+[build-system]
+requires = ["poetry-core>=1.8.0"]
+build-backend = "poetry.core.masonry.api"
