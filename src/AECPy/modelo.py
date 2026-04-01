@@ -8,12 +8,12 @@ import pandas as pd
 
 from . import procedimentos as pmm
 from .elemento import Elemento
-from .no import No
+from .no import NoBase
 from .unidades import Conversor
 from .graficos import unidade_padrao_saida
 
 
-def numerar_gdls(nos: list[No]) -> int:
+def numerar_gdls(nos: list[NoBase]) -> int:
     """
     Função para numerar os graus de liberdade dos nós
     Todos os graus de liberdade livres (F) são numerados de 1 a ngdlF
@@ -52,7 +52,7 @@ def numerar_gdls(nos: list[No]) -> int:
     
 
 def construir_SEL(
-    nos: list[No], els: list[Elemento], ngdl: int
+    nos: list[NoBase], els: list[Elemento], ngdl: int
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Função para construir a matriz de rigidez global e o vetor de forças nodais
@@ -103,7 +103,7 @@ def construir_SEL(
     return K, F
 
 
-def resolver_SEL(K: np.ndarray, F: np.ndarray, nos: list[No], ngdlF: int) -> tuple[
+def resolver_SEL(K: np.ndarray, F: np.ndarray, nos: list[NoBase], ngdlF: int) -> tuple[
     np.ndarray, np.ndarray
 ]:
     """
@@ -132,7 +132,7 @@ def resolver_SEL(K: np.ndarray, F: np.ndarray, nos: list[No], ngdlF: int) -> tup
     return U, R
 
 
-def resultados_nos(nos: list[No], U: np.ndarray, R: np.ndarray) -> pd.DataFrame:
+def resultados_nos(nos: list[NoBase], U: np.ndarray, R: np.ndarray) -> pd.DataFrame:
     """
     Função para criar uma dataframe com os resultados nos nós
     """

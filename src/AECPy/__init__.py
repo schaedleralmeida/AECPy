@@ -1,6 +1,6 @@
 from .material import Material
 from .secao import (Secao, SecaoRetangular)
-from .no import NoBase, No, NoPE, NoPP, NoTE, NoTP, NoGR, No_PE, No_PP, No_TE, No_TP, No_GR
+from .no import NoBase, NoPE, NoPP, NoTE, NoTP, NoGR
 from .elemento import Elemento
 
 from . import unidades

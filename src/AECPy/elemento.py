@@ -7,7 +7,7 @@ import numpy as np
 
 from . import axial, flexao
 from . import procedimentos as pmm
-from .no import No
+from .no import NoBase
 from .secao import Secao
 
 
@@ -17,7 +17,7 @@ class Elemento:
 
     Atributes
     ---------
-    noI, noJ: No
+    noI, noJ: NoBase
         Nós inicial e final do elemento
     sec: Secao
         Seção transversal do elemento

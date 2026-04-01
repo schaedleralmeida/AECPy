@@ -365,10 +365,3 @@ class NoGR(NoBase):
     forcas_globais = ("fz", "mx", "my")
 
 
-# Aliases para compatibilidade com código educacional
-No = NoBase
-No_PE = NoPE
-No_PP = NoPP
-No_TE = NoTE
-No_TP = NoTP
-No_GR = NoGR
