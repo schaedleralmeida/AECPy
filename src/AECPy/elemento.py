@@ -215,38 +215,6 @@ class ElementoBase:
         self.__dTemp = dict(valores)
 
     # ------------------------------------------------------------------
-    # Eixos locais alternativos (somente ElementoPE)
-
-    @property
-    def alterar_eixos_locais(self):
-        """Dado para alteração dos eixos locais (somente ElementoPE).
-
-        - ``float`` ou ``int``: ângulo de rotação dos eixos 2-3 em graus,
-          sentido anti-horário.
-        - ``NoBase`` ou array: ponto adicional para definir o plano
-          que contém os eixos 1-2.
-        """
-        try:
-            return self.__alterar_el
-        except AttributeError:
-            return None
-
-    @alterar_eixos_locais.setter
-    def alterar_eixos_locais(self, alt):
-        if self.tipo != "PE":
-            raise ValueError(
-                "A alteração dos eixos locais só é possível em Pórticos Espaciais"
-            )
-        if isinstance(alt, (float, int, NoBase)):
-            self.__alterar_el = alt
-        elif len(alt) == self.noI.ndim:
-            self.__alterar_el = np.array(alt)
-        else:
-            raise ValueError(
-                "alt deve ser um ângulo (em graus), um NoBase ou coordenadas de um ponto"
-            )
-
-    # ------------------------------------------------------------------
     # Cálculos
 
     def atualizar_geometria(self):
@@ -255,21 +223,9 @@ class ElementoBase:
 
     def R(self):
         """Calcula a matriz de transformação das coordenadas globais para as locais."""
-        alt = self.alterar_eixos_locais
-        if alt:
-            if isinstance(alt, (int, float)):
-                Rpadrao = pmm.R3D(self.e1_3D)
-                R = pmm.R3D_mod_ang(Rpadrao, alt)
-            else:
-                u = (alt.coor if isinstance(alt, NoBase) else alt) - self.noI.coor
-                u = u / np.linalg.norm(u)
-                R = pmm.R3D_u(self.e1_3D, u)
-        else:
-            R = pmm.R3D(self.e1_3D)
-
+        R = pmm.R3D(self.e1_3D)
         if self._R_ord is not None:
             R = pmm.reordenar_array(R, self._R_ord[0], self._R_ord[1])
-
         return R
 
     def Ke_local(self):
@@ -409,6 +365,41 @@ class ElementoPE(ElementoBase):
     _cargas_locais = ("w1", "w2", "w3")
     _cargas_globais = ("wx", "wy", "wz")
     _var_temperatura = ("dT0", "dT2", "dT3")
+
+    @property
+    def alterar_eixos_locais(self):
+        """Dado para alteração dos eixos locais.
+
+        - ``float`` ou ``int``: ângulo de rotação dos eixos 2-3 em graus,
+          sentido anti-horário.
+        - ``NoBase`` ou array: ponto adicional para definir o plano
+          que contém os eixos 1-2.
+        """
+        try:
+            return self.__alterar_el
+        except AttributeError:
+            return None
+
+    @alterar_eixos_locais.setter
+    def alterar_eixos_locais(self, alt):
+        if isinstance(alt, (float, int, NoBase)):
+            self.__alterar_el = alt
+        elif len(alt) == self.noI.ndim:
+            self.__alterar_el = np.array(alt)
+        else:
+            raise ValueError(
+                "alt deve ser um ângulo (em graus), um NoBase ou coordenadas de um ponto"
+            )
+
+    def R(self):
+        """Calcula a matriz de transformação das coordenadas globais para as locais."""
+        alt = self.alterar_eixos_locais
+        if alt is None:
+            return pmm.R3D(self.e1_3D)
+        if isinstance(alt, (int, float)):
+            return pmm.R3D_mod_ang(pmm.R3D(self.e1_3D), alt)
+        u = (alt.coor if isinstance(alt, NoBase) else alt) - self.noI.coor
+        return pmm.R3D_u(self.e1_3D, u / np.linalg.norm(u))
 
 
 class ElementoTP(ElementoBase):
