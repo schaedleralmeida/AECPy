@@ -2,9 +2,43 @@
 Módulo para definição da classe Secao para o AECPy
 """
 
-import math
 
-from .material import Material
+class Material:
+    """Material elástico linear para análise estrutural por AECPy.
+
+    Atributos
+    ---------
+    E : float
+        Módulo de Young.
+    G : float
+        Módulo de cisalhamento.
+    pe : float
+        Peso específico.
+    cdt : float
+        Coeficiente de dilatação térmica.
+    nome : str
+        Nome do material.
+    """
+
+    def __init__(self, E, G=0.0, pe=0.0, cdt=0.0, nome=""):
+        if any(prop < 0 for prop in [E, G, pe, cdt]):
+            raise ValueError("As propriedades do material não devem ser negativas")
+
+        self.E = E          # módulo de Young
+        self.G = G          # módulo de cisalhamento
+        self.pe = pe        # peso específico
+        self.cdt = cdt      # coeficiente de dilatação térmica
+        self.nome = nome
+
+    def __repr__(self):
+        return f"Material({self.E}, {self.G}, {self.pe}, {self.cdt}, {self.nome!r})"
+
+    def __str__(self):
+        txt = "material" if self.nome == "" else self.nome
+        txt += f": E={self.E}, G={self.G}"
+        txt += f", peso específico={self.pe}" 
+        txt += f", coef. dilatação térmica={self.cdt}"
+        return txt
 
 
 class SecaoBase:
@@ -56,10 +90,8 @@ class SecaoBase:
 
     def __str__(self):
         txt = f"secao: {self.nome}\n"
-        txt += f"EA ={self.EA}\n"
-        txt += f"EI2={self.EI2}\n"
-        txt += f"EI3={self.EI3}\n"
-        txt += f"GJ ={self.GJ}\n"
+        txt += f"EA={self.EA:.3e}  EI3={self.EI3:.3e}  EI2={self.EI2:.3e}  GJ={self.GJ:.3e}\n"
+        txt += f"cdtEA={self.cdtEA:.3e}  cdtEI3={self.cdtEI3:.3e}  cdtEI2={self.cdtEI2:.3e}  peso={self.peso_unitario:.3e}\n"
         return txt
 
 
@@ -139,11 +171,9 @@ class Secao(SecaoBase):
                 f"I2={self.I2}, I3={self.I3}, J={self.J})")
 
     def __str__(self):
-        txt = f"secao: {self.nome}\n"
-        txt += f"A ={self.A}\n"
-        txt += f"I2={self.I2}\n"
-        txt += f"I3={self.I3}\n"
-        txt += f"J ={self.J}\n"
+        txt = super().__str__()
+        txt += str(self.mat) + "\n"
+        txt += f"A={self.A:.4g}  I2={self.I2:.3e}  I3={self.I3:.3e}  J={self.J:.3e}\n"
         return txt
 
 
@@ -174,3 +204,8 @@ class SecaoRetangular(Secao):
         self.b = b
         self.h = h
         super().__init__(mat, A=A, I3=I3, I2=I2, J=J, nome=nome)
+
+    def __str__(self):
+        txt = super().__str__()
+        txt += f"b={self.b:.4g}  h={self.h:.4g}\n"
+        return txt
