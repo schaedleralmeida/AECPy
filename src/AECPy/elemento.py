@@ -11,6 +11,15 @@ from .no import NoBase, NoPP, NoPE, NoTP, NoTE, NoGR
 from .secao import Secao
 
 
+def _acumular(dest, src):
+    """Acumula os valores de ``src`` em ``dest``, somando os já existentes."""
+    for key, value in src.items():
+        if key in dest:
+            dest[key] += value
+        else:
+            dest[key] = value
+
+
 class ElementoBase:
     """Classe base de elemento para modelos estruturais via Método da Rigidez Direta.
 
@@ -39,38 +48,6 @@ class ElementoBase:
     _cargas_locais = ()     # identificadores das cargas nos eixos locais
     _cargas_globais = ()    # identificadores das cargas nos eixos globais
     _var_temperatura = ()   # identificadores das variáveis de temperatura
-
-    # mapa de funções para cálculo de resultados internos por parte (usado em rel())
-    _parte_rigidez = {
-        "ax": {
-            "rel_d":  axial.rel_d_a,
-            "carga":  "w1",
-            "rel_w":  axial.rel_w1,
-            "dTemp":  "dT0",
-            "rel_dT": axial.rel_T,
-        },
-        "tr": {
-            "rel_d":  axial.rel_d_t,
-            "carga":  "",
-            "rel_w":  None,
-            "dTemp":  "",
-            "rel_dT": None,
-        },
-        "b2": {
-            "rel_d":  flexao.rel_d_b2,
-            "carga":  "w3",
-            "rel_w":  flexao.rel_w3,
-            "dTemp":  "dT3",
-            "rel_dT": flexao.rel_T3,
-        },
-        "b3": {
-            "rel_d":  flexao.rel_d_b3,
-            "carga":  "w2",
-            "rel_w":  flexao.rel_w2,
-            "dTemp":  "dT2",
-            "rel_dT": flexao.rel_T2,
-        },
-    }
 
     def __init__(self, noI, noJ, sec) -> None:
         if self.tipo == "":
@@ -290,39 +267,35 @@ class ElementoBase:
 
     def rel(self, dl, x):
         """Calcula deslocamentos e esforços internos na posição ``x`` do elemento."""
-        rel = {"x": x}
+        resultado = {"x": x}
         xi = x / self.L
         pmm.check_xi(xi)
-
         ct = self.carga_total()
+        dT = self.dTemp
 
-        for prt, il in self._partes.items():
-            rel_d = self._parte_rigidez[prt]["rel_d"](xi, self.sec, self.L, dl[il])
-
-            calc_rel_w = self._parte_rigidez[prt]["rel_w"]
-            if calc_rel_w is not None:
-                carga = self._parte_rigidez[prt]["carga"]
-                rel_w = calc_rel_w(xi, self.sec, self.L, ct.get(carga, [0.0, 0.0]))
-            else:
-                rel_w = None
-
-            calc_rel_dT = self._parte_rigidez[prt]["rel_dT"]
-            dTemp_key = self._parte_rigidez[prt]["dTemp"]
-            if calc_rel_dT is not None and dTemp_key in self.__dTemp:
-                rel_dT = calc_rel_dT(xi, self.sec, self.L, self.__dTemp[dTemp_key])
-            else:
-                rel_dT = None
-
-            for dd in (rel_d, rel_w, rel_dT):
-                if dd is None:
-                    continue
-                for key, value in dd.items():
-                    if key in rel:
-                        rel[key] += value
-                    else:
-                        rel[key] = value
-
-        return rel
+        if "ax" in self._partes:
+            il = self._partes["ax"]
+            _acumular(resultado, axial.rel_d_a(xi, self.sec, self.L, dl[il]))
+            if "w1" in ct:
+                _acumular(resultado, axial.rel_w1(xi, self.sec, self.L, ct["w1"]))
+            if "dT0" in dT:
+                _acumular(resultado, axial.rel_T(xi, self.sec, self.L, dT["dT0"]))
+        if "tr" in self._partes:
+            il = self._partes["tr"]
+            _acumular(resultado, axial.rel_d_t(xi, self.sec, self.L, dl[il]))
+        if "b3" in self._partes:
+            il = self._partes["b3"]
+            _acumular(resultado, flexao.rel_d_b3(xi, self.sec, self.L, dl[il]))
+            _acumular(resultado, flexao.rel_w2(xi, self.sec, self.L, ct["w2"]))
+            if "dT2" in dT:
+                _acumular(resultado, flexao.rel_T2(xi, self.sec, self.L, dT["dT2"]))
+        if "b2" in self._partes:
+            il = self._partes["b2"]
+            _acumular(resultado, flexao.rel_d_b2(xi, self.sec, self.L, dl[il]))
+            _acumular(resultado, flexao.rel_w3(xi, self.sec, self.L, ct["w3"]))
+            if "dT3" in dT:
+                _acumular(resultado, flexao.rel_T3(xi, self.sec, self.L, dT["dT3"]))
+        return resultado
 
     def dl(self, d_global):
         """Deslocamentos nodais em coordenadas locais a partir do vetor global."""
