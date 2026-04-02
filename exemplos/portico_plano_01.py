@@ -4,39 +4,34 @@ Exemplo 4.13 do livro Matrix Structural Analysis 2ed
 import numpy as np
 from math import sin, cos, radians
 
-import sys
-import os
-dir_path = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(os.path.realpath(f"{dir_path}/../src/"))
-
 import AECPy as aec
-
-aec.No.iniciar('PP')
-aec.Elemento.iniciar('PP')
+from AECPy.no import NoPP as No
+from AECPy.elemento import ElementoPP as Elemento
+from AECPy.secao import Secao, Material
 
 #unidades: [kN, mm]
 
 #materiais:
-mat1 = aec.Material(200,0.0,nome='meu_material')
+mat1 = Material(200, nome='meu_material')
 
 #seções transversais (adotando I2=J=1 em todas):
-sec_ab  = aec.Secao(mat1, 6.e3, I3=200.e6, nome='Sec_AB') 
-sec_bc  = aec.Secao(mat1, 4.e3, I3= 50.e6, nome='Sec_BC')
+sec_ab  = Secao(mat1, 6.e3, I3=200.e6, nome='Sec_AB')
+sec_bc  = Secao(mat1, 4.e3, I3= 50.e6, nome='Sec_BC')
 
 #nós:
-nos = [aec.No([0.0,0.0])] * 3
-nos[0] = aec.No([0.0, 5.0e3])
-nos[1] = aec.No([8.0e3, 5.0e3])
-nos[2] = aec.No([8.0e3, 0.0])
-nos[0].definir_apoio('todos')
-nos[2].definir_apoio('todos')
+nos = []
+nos.append(No([0.0, 5.0e3]))
+nos.append(No([8.0e3, 5.0e3]))
+nos.append(No([8.0e3, 0.0]))
+nos[0].deslocamentos_nulos = list(No.gdls_globais)
+nos[2].deslocamentos_nulos = list(No.gdls_globais)
 ang = radians(-45)
-nos[1].definir_carga(fx=( 100 * cos(ang)) , fz = ( 100 * sin(ang)), my = -50.e3)
+nos[1].carga = {'fx': 100 * cos(ang), 'fz': 100 * sin(ang), 'my': -50.e3}
 
 #elementos:
-els = [aec.Elemento(nos[0], nos[1], sec_ab)] * 2
-els[0] = aec.Elemento(nos[0], nos[1], sec_ab)
-els[1] = aec.Elemento(nos[1], nos[2], sec_bc)
+els = []
+els.append(Elemento(nos[0], nos[1], sec_ab))
+els.append(Elemento(nos[1], nos[2], sec_bc))
 
 
 # Análise
