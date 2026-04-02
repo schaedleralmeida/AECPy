@@ -7,236 +7,229 @@ import numpy as np
 
 from . import axial, flexao
 from . import procedimentos as pmm
-from .no import NoBase
+from .no import NoBase, NoPP, NoPE, NoTP, NoTE, NoGR
 from .secao import Secao
 
 
-class Elemento:
-    """
-    Elemeto para análise estrutural pelo Método da Rigidez Direta no AECPy
+class ElementoBase:
+    """Classe base de elemento para modelos estruturais via Método da Rigidez Direta.
 
-    Atributes
+    Cada subclasse define o tipo de modelo (PP, PE, TP, TE, GR), incluindo
+    as partes de rigidez, cargas e temperatura disponíveis.
+
+    Atributos
     ---------
-    noI, noJ: NoBase
-        Nós inicial e final do elemento
-    sec: Secao
-        Seção transversal do elemento
-    mat: Material
-        Material que forma o elemento
-    L: float
-        Comprimento do elemento
-    e1: numpy.ndarray (shape = (3,))
-        Vetor unitário na direção do noI para o noJ
+    noI, noJ : NoBase
+        Nós inicial e final do elemento.
+    sec : Secao
+        Seção transversal do elemento.
+    L : float
+        Comprimento do elemento.
+    e1 : numpy.ndarray (shape = (3,))
+        Vetor unitário na direção do noI para o noJ.
     """
 
-    __parte_rigidez = {
+    # atributos do tipo estrutural (definidos em subclasses)
+    tipo = ""
+    ndim = 0                # dimensão do espaço (2 ou 3)
+    ngdl = 0                # número de gdl do elemento (2 × ngdl do nó)
+    _tipo_no = None         # classe de nó compatível com o elemento
+    _R_ord = None           # reordenamento da matriz R; None para modelos 3D
+    _partes = {}            # partes de rigidez e seus índices de gdl locais
+    _cargas_locais = ()     # identificadores das cargas nos eixos locais
+    _cargas_globais = ()    # identificadores das cargas nos eixos globais
+    _var_temperatura = ()   # identificadores das variáveis de temperatura
+
+    # mapa de funções de rigidez por parte (compartilhado entre todos os tipos)
+    _parte_rigidez = {
         "ax": {
             "calc_K": axial.calc_Ka,
-            "rel_d": axial.rel_d_a,
-            "carga": "w1",
-            "rep": axial.rep_w1,
-            "rel_w": axial.rel_w1,
-            "dTemp": "dT0",
+            "rel_d":  axial.rel_d_a,
+            "carga":  "w1",
+            "rep":    axial.rep_w1,
+            "rel_w":  axial.rel_w1,
+            "dTemp":  "dT0",
             "rep_dT": axial.rep_T,
             "rel_dT": axial.rel_T,
         },
         "tr": {
             "calc_K": axial.calc_Kt,
-            "rel_d": axial.rel_d_t,
-            "carga": "",
-            "rep": None,
-            "rel_w": None,
-            "dTemp": "",
+            "rel_d":  axial.rel_d_t,
+            "carga":  "",
+            "rep":    None,
+            "rel_w":  None,
+            "dTemp":  "",
             "rep_dT": None,
             "rel_dT": None,
         },
         "b2": {
             "calc_K": flexao.calc_Kb2,
-            "rel_d": flexao.rel_d_b2,
-            "carga": "w3",
-            "rep": flexao.rep_w3,
-            "rel_w": flexao.rel_w3,
-            "dTemp": "dT3",
+            "rel_d":  flexao.rel_d_b2,
+            "carga":  "w3",
+            "rep":    flexao.rep_w3,
+            "rel_w":  flexao.rel_w3,
+            "dTemp":  "dT3",
             "rep_dT": flexao.rep_T3,
             "rel_dT": flexao.rel_T3,
         },
         "b3": {
             "calc_K": flexao.calc_Kb3,
-            "rel_d": flexao.rel_d_b3,
-            "carga": "w2",
-            "rep": flexao.rep_w2,
-            "rel_w": flexao.rel_w2,
-            "dTemp": "dT2",
+            "rel_d":  flexao.rel_d_b3,
+            "carga":  "w2",
+            "rep":    flexao.rep_w2,
+            "rel_w":  flexao.rel_w2,
+            "dTemp":  "dT2",
             "rep_dT": flexao.rep_T2,
             "rel_dT": flexao.rel_T2,
         },
     }
 
-    __carga = dict()
-    __incluir_peso_proprio = False
-    __dTemp = dict()
-
-    # __quantidades = {   'força': ['N','V2','V3'] + [f'f{i}' for i in [1,2,3,'x','y','z']],
-    #                     'momento':['Mt','M2','M3'] + [f'm{i}' for i in [1,2,3,'x','y','z']],
-    #                     'comprimento':['x','y','z'],
-    #                     'translação':[f'u{i}' for i in [1,2,3,'x','y','z']],
-    #                     'rotação': [f'r{i}' for i in [1,2,3,'x','y','z']]
-    #                     }
-    # __unidade_padrao_saida = {  'força': 'kN',
-    #                             'momento': 'kNm',
-    #                             'comprimento': 'cm',
-    #                             'translação': 'mm',
-    #                             'rotação': 'rad'}
-
-    @classmethod
-    def iniciar(cls, tipo):
-        if tipo == "TP":  # elemento de treliça plana
-            cls.__R_ord = ([0, 1], (0, 2))  # (u1,u2) = R (ux,uz)
-            cls.__partes = {"ax": [0, 2]}
-            cls.__cargas_locais = tuple()
-            cls.__cargas_globais = tuple()
-            cls.__var_temperatura = ("dT0",)
-
-        elif tipo == "TE":  # elemento de treliça espacial
-            cls.__R_ord = None
-            cls.__partes = {"ax": [0, 3]}
-            cls.__cargas_locais = tuple()
-            cls.__cargas_globais = tuple()
-            cls.__var_temperatura = ("dT0",)
-
-        elif tipo == "PP":  # elemento de pórtico plano
-            cls.__R_ord = ([0, 1, 2], [0, 2, 1])  # (u1,u2,r3) = R (ux,uz,ry)
-            cls.__partes = {"ax": [0, 3], "b3": [1, 2, 4, 5]}
-            cls.__cargas_locais = ("w1", "w2")
-            cls.__cargas_globais = ("wx", "wz")
-            cls.__var_temperatura = ("dT0", "dT2")
-
-        elif tipo == "GR":  # elemento de grelha
-            cls.__R_ord = ([1, 0, 2], [2, 0, 1])  # (u2,r1,r3) = R (uz,rx,ry)
-            cls.__partes = {"tr": [1, 4], "b3": [0, 2, 3, 5]}
-            cls.__cargas_locais = ("w2",)
-            cls.__cargas_globais = ("wz",)
-            cls.__var_temperatura = ("dT2",)
-
-        elif tipo == "PE":  # elemento de pórtico espacial
-            cls.__R_ord = None
-            cls.__partes = {
-                "ax": [0, 6],
-                "tr": [3, 9],
-                "b3": [1, 5, 7, 11],
-                "b2": [2, 4, 8, 10],
-            }
-            cls.__cargas_locais = ("w1", "w2", "w3")
-            cls.__cargas_globais = ("wx", "wy", "wz")
-            cls.__var_temperatura = ("dT0", "dT2", "dT3")
-
-        cls.__tipo = tipo
-        cls.__cargas_permitidas = cls.__cargas_globais + cls.__cargas_locais
-
-    @classmethod
-    def incluir_peso_proprio(cls, incluir):
-        """Define a inclusão do peso próprio no carregamento do elemento"""
-        
-        if not isinstance(incluir, bool):
-            raise TypeError("incluir deve ser do tipo bool")
-        else:
-            cls.__incluir_peso_proprio = incluir
-
-
     def __init__(self, noI, noJ, sec) -> None:
-        if (not isinstance(noI, No)) or (not isinstance(noJ, No)):
-            raise TypeError("noI ou noJ não são do tipo `No`")
+        if self.tipo == "":
+            raise TypeError(
+                "ElementoBase é base. Use uma subclasse como "
+                "ElementoPE, ElementoPP, ElementoTE, ElementoTP ou ElementoGR."
+            )
+        assert self._tipo_no is not None  # garantido pelas subclasses
+        if not isinstance(noI, self._tipo_no) or not isinstance(noJ, self._tipo_no):
+            raise TypeError(
+                f"noI e noJ devem ser do tipo {self._tipo_no.__name__} "
+                f"para o elemento do tipo '{self.tipo}'"
+            )
         if not isinstance(sec, Secao):
-            raise TypeError("sec não é do tipo `Secao`")
-        self.noI = noI  # nó inicial
-        self.noJ = noJ  # nó final
-        self.sec = sec  # seçaõ transvreal
-        self.mat = sec.mat  # matreal do elemento
+            raise TypeError("sec não é do tipo Secao")
 
-        # cálculo de comprimento e direção do elemento
+        self.noI = noI
+        self.noJ = noJ
+        self.sec = sec
+
+        self.__carga = {}
+        self.__dTemp = {}
+        self.__inclui_peso_proprio = False
+
         self.atualizar_geometria()
 
-    @property
-    def tipo(self):
-        return self.__tipo
-
-    @property
-    def ndim(self):
-        """Número de dimensões do espaço no modelo (2 ou 3)"""
-
-        return self.noI.ndim
-
-    @property
-    def ngdl(self):
-        """Número de gdl do elemento"""
-
-        return 2 * self.noI.ngdl
+    # ------------------------------------------------------------------
+    # Propriedades geométricas e estruturais
 
     @property
     def igdl(self):
-        """Índices globais dos gdl do elemento"""
-
+        """Índices globais dos gdl do elemento."""
         return list(self.noI.igdl) + list(self.noJ.igdl)
 
     @property
     def L(self):
-        """Comprimento do elemento"""
+        """Comprimento do elemento."""
         return self.__L
 
     @property
     def e1(self):
-        """Vetor unitário na direção do noI para noJ"""
+        """Vetor unitário na direção do noI para o noJ."""
         return self.__e1
 
     @property
     def e1_3D(self):
-        """Vetor unitário na direção do noI para noJ, no espaço 3D"""
+        """Vetor unitário na direção do noI para o noJ, no espaço 3D."""
         if self.ndim == 2:
-            if self.tipo in ["TP", "PP"]:
-                return np.array([self.e1[0], 0, self.e1[1]])
-            # self.tipo == 'GR'
-            return np.array([self.e1[0], self.e1[1], 0])
+            if self.tipo in ("TP", "PP"):
+                return np.array([self.e1[0], 0.0, self.e1[1]])
+            # GR: plano xOy
+            return np.array([self.e1[0], self.e1[1], 0.0])
         return self.e1
+
+    # ------------------------------------------------------------------
+    # Carregamento
 
     @property
     def carga(self):
-        """
-        Define os carregamentos no elemento
-        Retorna um dicionário onde
-            > key: direção de cada carregamento
-            impo> value: (wi,wf) com a intensidade da carga distribuída no início e no fim do elemento"""
-        return self.__carga
+        """Dicionário de carregamentos distribuídos no elemento.
 
-    @property
-    def carregado(self):
-        return len(self.__carga) > 0
+        Cada entrada associa a direção à intensidade ``(wi, wf)`` no início
+        e no fim do elemento. Atribuir ``None`` limpa os carregamentos.
+
+        Cargas permitidas dependem do tipo: eixos globais (ex.: ``wx``, ``wz``)
+        e locais (ex.: ``w1``, ``w2``).
+        """
+        return dict(self.__carga)
+
+    @carga.setter
+    def carga(self, valores):
+        if valores is None:
+            self.__carga = {}
+            return
+        if not isinstance(valores, dict):
+            raise TypeError("carga deve ser um dicionário ou None")
+        cargas_permitidas = self._cargas_globais + self._cargas_locais
+        nova_carga = {}
+        for nome, w in valores.items():
+            if nome not in cargas_permitidas:
+                raise ValueError(
+                    f"A carga '{nome}' não está entre as permitidas: {cargas_permitidas}"
+                )
+            if isinstance(w, (int, float)):
+                nova_carga[nome] = (w, w)
+            elif len(w) == 2 and all(isinstance(v, (int, float)) for v in w):
+                nova_carga[nome] = tuple(w)
+            else:
+                raise ValueError(f"A carga '{nome}' tem formato incorreto")
+        self.__carga = nova_carga
 
     @property
     def inclui_peso_proprio(self):
-        """
-        Indica se o peso próprio do elemento é incluído no carregamento
-        """
-        return self.__incluir_peso_proprio
-    
-    @property
-    def dTemp(self):
-        return self.__dTemp
+        """``True`` se o peso próprio é incluído no carregamento do elemento."""
+        return self.__inclui_peso_proprio
+
+    @inclui_peso_proprio.setter
+    def inclui_peso_proprio(self, valor):
+        if not isinstance(valor, bool):
+            raise TypeError("inclui_peso_proprio deve ser do tipo bool")
+        self.__inclui_peso_proprio = valor
+
+    # ------------------------------------------------------------------
+    # Variação de temperatura
 
     @property
-    def variacao_termica(self):
-        return len(self.__dTemp) > 0
+    def dTemp(self):
+        """Dicionário de variações de temperatura no elemento.
+
+        Atribuir ``None`` limpa as variações. Variáveis permitidas dependem
+        do tipo de elemento (ex.: ``dT0``, ``dT2``, ``dT3``).
+        """
+        return dict(self.__dTemp)
+
+    @dTemp.setter
+    def dTemp(self, valores):
+        if valores is None:
+            self.__dTemp = {}
+            return
+        if not isinstance(valores, dict):
+            raise TypeError("dTemp deve ser um dicionário ou None")
+        for var, T in valores.items():
+            if var not in self._var_temperatura:
+                raise ValueError(
+                    f"A variação de temperatura '{var}' não está entre as "
+                    f"permitidas: {self._var_temperatura}"
+                )
+            if not isinstance(T, (int, float)):
+                raise TypeError(f"O valor de temperatura '{var}' deve ser numérico")
+        self.__dTemp = dict(valores)
+
+    # ------------------------------------------------------------------
+    # Eixos locais alternativos (somente ElementoPE)
 
     @property
     def alterar_eixos_locais(self):
-        """
-        Dado para alteração dos eixos locais
-        se float ou int: representa o ângulo de rotação dos eixos 2,3 em graus e no sentido anti-horário
-        se No ou array: representa um ponto adicional usado para criar um plano que contém os eixos 1-2
+        """Dado para alteração dos eixos locais (somente ElementoPE).
+
+        - ``float`` ou ``int``: ângulo de rotação dos eixos 2-3 em graus,
+          sentido anti-horário.
+        - ``NoBase`` ou array: ponto adicional para definir o plano
+          que contém os eixos 1-2.
         """
         try:
             return self.__alterar_el
         except AttributeError:
-            return None  # if hasattr(self, '_Elemento_alterar_el') else None
+            return None
 
     @alterar_eixos_locais.setter
     def alterar_eixos_locais(self, alt):
@@ -244,209 +237,133 @@ class Elemento:
             raise ValueError(
                 "A alteração dos eixos locais só é possível em Pórticos Espaciais"
             )
-        if isinstance(alt, (float, int, No)):
+        if isinstance(alt, (float, int, NoBase)):
             self.__alterar_el = alt
         elif len(alt) == self.noI.ndim:
             self.__alterar_el = np.array(alt)
         else:
             raise ValueError(
-                "alt deve ser um ângulo (em rad), um No ou coordenadas de um ponto"
+                "alt deve ser um ângulo (em graus), um NoBase ou coordenadas de um ponto"
             )
 
-    def atualizar_geometria(self):
-        """Calcula o comprimento (L) e o vetor unitário de noI par noJ (e1)"""
+    # ------------------------------------------------------------------
+    # Cálculos
 
+    def atualizar_geometria(self):
+        """Calcula o comprimento (L) e o vetor unitário de noI para noJ (e1)."""
         self.__L, self.__e1 = pmm.calc_L_u(self.noI.coor, self.noJ.coor)
 
     def R(self):
-        """
-        Calcula a matriz de transformação das coordenadas globais para as locais do elemento
-        """
+        """Calcula a matriz de transformação das coordenadas globais para as locais."""
         alt = self.alterar_eixos_locais
         if alt:
-            # Eixos locais em direção diferente da padrão
-            if isinstance(alt, float):
-                # rotação dos eixos 2-3 definida por um ângulo
+            if isinstance(alt, (int, float)):
                 Rpadrao = pmm.R3D(self.e1_3D)
                 R = pmm.R3D_mod_ang(Rpadrao, alt)
             else:
-                # direção do eixo 2 definda no plano e1 , u
-                if isinstance(alt, No):
-                    # vetor u definido por um 3º nó
-                    u = alt.coor - self.noI.coor
-                else:
-                    # vetor u definido por um ponto adicional
-                    u = alt - self.noI.coor
-                u /= np.linalg.norm(u)
+                u = (alt.coor if isinstance(alt, NoBase) else alt) - self.noI.coor
+                u = u / np.linalg.norm(u)
                 R = pmm.R3D_u(self.e1_3D, u)
         else:
-            # eixos locais na direção padrão
             R = pmm.R3D(self.e1_3D)
 
-        if self.__R_ord is not None:
-            R = pmm.reordenar_array(R, self.__R_ord[0], self.__R_ord[1])
+        if self._R_ord is not None:
+            R = pmm.reordenar_array(R, self._R_ord[0], self._R_ord[1])
 
         return R
 
     def Ke_local(self):
-        """Calcula as parcelas de rigidez do elemento e monta a matriz de rigidz local"""
-        ngdl = self.ngdl
-        Kel = np.zeros((ngdl, ngdl))
-        for prt, il in self.__partes.items():
-            calc_K = self.__parte_rigidez[prt]["calc_K"]
+        """Calcula a matriz de rigidez local do elemento."""
+        Kel = np.zeros((self.ngdl, self.ngdl))
+        for prt, il in self._partes.items():
+            calc_K = self._parte_rigidez[prt]["calc_K"]
             pmm.espalhar(calc_K(self.sec, self.L), Kel, il)
         return Kel
 
-    def definir_carga(self, **kwargs):
-        """Introdução das cargas no elemento"""
-        # forças extrenas distribuídas em todo o elemento
-        self.__carga = dict()
-        for carga, w in kwargs.items():
-            if carga in self.__cargas_permitidas:
-                if isinstance(w, (int, float)):  # carregamento constante
-                    self.__carga[carga] = (w, w)
-                elif len(w) == 2 and all(
-                    [isinstance(v, (int, float)) for v in w]
-                ):
-                    self.__carga[carga] = tuple(w)  # carregamento linear
-                else:
-                    raise ValueError(f"A carga {carga} tem formato incorreto")
-            else:
-                raise ValueError(
-                    f"A carga {carga} não está entra as permitidas: {self.__cargas_permitidas}"
-                )
-        return
-
-    def definir_carga_termica(self, **kwargs):
-        """Introdução da variação da temperatura no elemento"""
-        # variação de temperatura em todo o elemento
-        self.__dTemp = dict()
-        for dTemp, T in kwargs.items():
-            if dTemp in self.__var_temperatura:
-                if isinstance(T, (int, float)):
-                    # variação de termperatura uniforme na seção transversal
-                    self.__dTemp[dTemp] = T
-
-                else:
-                    raise ValueError(
-                        f"A variação de tempertaura {dTemp} tem formato incorreto: {T}"
-                    )
-            else:
-                raise ValueError(
-                    f"A variação de temperatura {dTemp} não está entre as perimtidas: {self.__var_temperatura}"
-                )
-
-        return
-
     def carga_total(self):
+        """Cargas totais em coordenadas locais.
+
+        Converte cargas em coordenadas globais (wx, wy, wz) para locais
+        (w1, w2, w3) e soma às cargas definidas originalmente nos eixos locais.
         """
-        Cálculo das cargas totais no elemento, somando as cargas
-        Transforma cargas dadas segundo coordenadas globais (wx,wy,wz)
-        em cagas segundo coordenadas locais (w1,w2,w3) e soma às cargas
-        dadas originalmente segundo os eixos locais.
-        """
-        carga_total = dict()
+        ct = {c: np.array(self.__carga.get(c, (0.0, 0.0)))
+              for c in self._cargas_locais}
 
-        # cargas locais
-        for c in self.__cargas_locais:
-            if c in self.carga:  # carga local não nula
-                carga_total[c] = np.array(self.carga[c])
-            else:  # carga local nula
-                carga_total[c] = np.zeros(2)
+        wg_i = np.zeros(3)
+        wg_j = np.zeros(3)
+        for i, c in enumerate(("wx", "wy", "wz")):
+            if c in self.__carga:
+                wg_i[i] = self.__carga[c][0]
+                wg_j[i] = self.__carga[c][1]
 
-        # Conversão de cargas globais em locais
-
-        wg_i = np.zeros(3)  # intensidade no início do elemento [wx,wy,wz]
-        wg_j = np.zeros(3)  # intensidade no fim do elemento
-        for i, c in enumerate(["wx", "wy", "wz"]):
-            if c in self.carga:
-                wg_i[i] = self.carga[c][0]
-                wg_j[i] = self.carga[c][1]
-
-        if self.__incluir_peso_proprio:
+        if self.__inclui_peso_proprio:
             wg_i[2] -= self.sec.peso_unitario
             wg_j[2] -= self.sec.peso_unitario
 
-        # Transformação das coordenadas globais para as locais
         R = pmm.R3D(self.e1_3D)
         wl_i = R @ wg_i
         wl_j = R @ wg_j
 
-        for i, c in enumerate(["w1", "w2", "w3"]):
-            if c in self.__cargas_locais:
-                carga_total[c][0] += wl_i[i]
-                carga_total[c][1] += wl_j[i]
+        for i, c in enumerate(("w1", "w2", "w3")):
+            if c in self._cargas_locais:
+                ct[c][0] += wl_i[i]
+                ct[c][1] += wl_j[i]
 
-        return carga_total
-
+        return ct
 
     def rep(self):
-        """Calcula as reações de engastamento perfeito das cargas nos elementos"""
-
+        """Calcula as reações de engastamento perfeito das cargas no elemento."""
         rep = np.zeros(self.ngdl)
-        carga_total = self.carga_total()
 
-        #caso especial para treliças
-        if self.__tipo.startswith("T") and self.inclui_peso_proprio:
+        # caso especial: treliças com peso próprio
+        if self.tipo.startswith("T") and self.__inclui_peso_proprio:
             R = pmm.R3D(self.e1_3D)
-            ff = R @ np.array([0, 0, self.sec.peso_unitario * self.L/2])
+            ff = R @ np.array([0.0, 0.0, self.sec.peso_unitario * self.L / 2])
             if self.ndim == 2:
-                return np.concatenate((ff[:2],ff[:2]))
-            else:
-                return np.concatenate((ff,ff))
-        
-        #para outros lementos
-        for prt, il in self.__partes.items():
-            carga = self.__parte_rigidez[prt]["carga"]
-            calc_rep = self.__parte_rigidez[prt]["rep"]
-            if calc_rep is not None:
-                w = carga_total[carga]
-                rep[il] += calc_rep(self.L, w)
+                return np.concatenate((ff[:2], ff[:2]))
+            return np.concatenate((ff, ff))
 
-            dTemp = self.__parte_rigidez[prt]["dTemp"]
-            calc_rep_dT = self.__parte_rigidez[prt]["rep_dT"]
-            if calc_rep_dT is not None and dTemp in self.__dTemp:
-                dT = self.__dTemp[dTemp]
-                rep[il] += calc_rep_dT(self.L, self.sec, dT)
+        ct = self.carga_total()
+
+        for prt, il in self._partes.items():
+            calc_rep = self._parte_rigidez[prt]["rep"]
+            if calc_rep is not None:
+                carga = self._parte_rigidez[prt]["carga"]
+                rep[il] += calc_rep(self.L, ct[carga])
+
+            calc_rep_dT = self._parte_rigidez[prt]["rep_dT"]
+            dTemp_key = self._parte_rigidez[prt]["dTemp"]
+            if calc_rep_dT is not None and dTemp_key in self.__dTemp:
+                rep[il] += calc_rep_dT(self.L, self.sec, self.__dTemp[dTemp_key])
 
         return rep
 
     def rel(self, dl, x):
-        """Calcula os deslocamentos e esforços internos em uma posição x do elemento"""
-
+        """Calcula deslocamentos e esforços internos na posição ``x`` do elemento."""
         rel = {"x": x}
-
         xi = x / self.L
         pmm.check_xi(xi)
 
-        carga_total = self.carga_total()
+        ct = self.carga_total()
 
-        # esforços e deslocamentos no elemento
-        for prt, il in self.__partes.items():
-            # devido aos deslocamentos nodais
-            dl_prt = dl[il]
-            calc_rel_d = self.__parte_rigidez[prt]["rel_d"]
-            rel_d = calc_rel_d(xi, self.sec, self.L, dl_prt)
+        for prt, il in self._partes.items():
+            rel_d = self._parte_rigidez[prt]["rel_d"](xi, self.sec, self.L, dl[il])
 
-            # esforços e deslocamentos no elemento devido aos carregamentos externos
-            calc_rel_w = self.__parte_rigidez[prt]["rel_w"]
+            calc_rel_w = self._parte_rigidez[prt]["rel_w"]
             if calc_rel_w is not None:
-                carga = self.__parte_rigidez[prt]["carga"]
-                w_prt = carga_total.get(carga,[0.0,0.0])
-                rel_w = calc_rel_w(xi, self.sec, self.L, w_prt)
+                carga = self._parte_rigidez[prt]["carga"]
+                rel_w = calc_rel_w(xi, self.sec, self.L, ct.get(carga, [0.0, 0.0]))
             else:
                 rel_w = None
 
-            # esforços e deslocamentos no elemento devido à variação de temperatura
-            calc_rel_dT = self.__parte_rigidez[prt]["rel_dT"]
-            dTemp = self.__parte_rigidez[prt]["dTemp"]
-            if calc_rel_dT is not None and dTemp in self.__dTemp:
-                dT_prt = self.__dTemp[dTemp]
-                rel_dT = calc_rel_dT(xi, self.sec, self.L, dT_prt)
+            calc_rel_dT = self._parte_rigidez[prt]["rel_dT"]
+            dTemp_key = self._parte_rigidez[prt]["dTemp"]
+            if calc_rel_dT is not None and dTemp_key in self.__dTemp:
+                rel_dT = calc_rel_dT(xi, self.sec, self.L, self.__dTemp[dTemp_key])
             else:
                 rel_dT = None
-            # somando os rel da parte no rel do elemento
-            for dd in [rel_d, rel_w, rel_dT]:
+
+            for dd in (rel_d, rel_w, rel_dT):
                 if dd is None:
                     continue
                 for key, value in dd.items():
@@ -454,19 +371,83 @@ class Elemento:
                         rel[key] += value
                     else:
                         rel[key] = value
+
         return rel
 
     def dl(self, d_global):
-        """
-        Calcula os deslocamentos dos nós do elemento em coordenadas
-        locais a partir do vetor global de deslocamentos em coordenadas
-        globais:
+        """Deslocamentos nodais em coordenadas locais a partir do vetor global."""
+        return pmm.transf_coord(d_global[self.igdl], self.R())
 
-        Parâmetros:
-        ----------
-        d_global: np.ndarray
-            vetor global de deslocamentos em coordenadas globais
-        """
-        dg = d_global[self.igdl]
-        R = self.R()
-        return pmm.transf_coord(dg, R)
+
+# ----------------------------------------------------------------------
+# Subclasses por tipo estrutural
+# ----------------------------------------------------------------------
+
+class ElementoPP(ElementoBase):
+    """Elemento para pórtico plano."""
+
+    tipo = "PP"
+    ndim = 2
+    ngdl = 6
+    _tipo_no = NoPP
+    _R_ord = ([0, 1, 2], [0, 2, 1])        # (u1, u2, r3) = R (ux, uz, ry)
+    _partes = {"ax": [0, 3], "b3": [1, 2, 4, 5]}
+    _cargas_locais = ("w1", "w2")
+    _cargas_globais = ("wx", "wz")
+    _var_temperatura = ("dT0", "dT2")
+
+
+class ElementoPE(ElementoBase):
+    """Elemento para pórtico espacial."""
+
+    tipo = "PE"
+    ndim = 3
+    ngdl = 12
+    _tipo_no = NoPE
+    _R_ord = None
+    _partes = {"ax": [0, 6], "tr": [3, 9], "b3": [1, 5, 7, 11], "b2": [2, 4, 8, 10]}
+    _cargas_locais = ("w1", "w2", "w3")
+    _cargas_globais = ("wx", "wy", "wz")
+    _var_temperatura = ("dT0", "dT2", "dT3")
+
+
+class ElementoTP(ElementoBase):
+    """Elemento para treliça plana."""
+
+    tipo = "TP"
+    ndim = 2
+    ngdl = 4
+    _tipo_no = NoTP
+    _R_ord = ([0, 1], (0, 2))               # (u1, u2) = R (ux, uz)
+    _partes = {"ax": [0, 2]}
+    _cargas_locais = ()
+    _cargas_globais = ()
+    _var_temperatura = ("dT0",)
+
+
+class ElementoTE(ElementoBase):
+    """Elemento para treliça espacial."""
+
+    tipo = "TE"
+    ndim = 3
+    ngdl = 6
+    _tipo_no = NoTE
+    _R_ord = None
+    _partes = {"ax": [0, 3]}
+    _cargas_locais = ()
+    _cargas_globais = ()
+    _var_temperatura = ("dT0",)
+
+
+class ElementoGR(ElementoBase):
+    """Elemento para grelha."""
+
+    tipo = "GR"
+    ndim = 2
+    ngdl = 6
+    _tipo_no = NoGR
+    _R_ord = ([1, 0, 2], [2, 0, 1])        # (u2, r1, r3) = R (uz, rx, ry)
+    _partes = {"tr": [1, 4], "b3": [0, 2, 3, 5]}
+    _cargas_locais = ("w2",)
+    _cargas_globais = ("wz",)
+    _var_temperatura = ("dT2",)
