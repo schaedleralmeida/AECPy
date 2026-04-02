@@ -1,23 +1,27 @@
 """
-Módulo para definição da classe Secao para o AECPy
+Módulo para definição das classes de material e seção transversal para o AECPy
 """
 
 
 class Material:
-    """Material elástico linear para análise estrutural por AECPy.
+    """Material elástico linear isotrópico para análise estrutural.
 
-    Atributos
-    ---------
+    Parameters
+    ----------
     E : float
         Módulo de Young.
-    G : float
-        Módulo de cisalhamento.
-    pe : float
-        Peso específico.
-    cdt : float
-        Coeficiente de dilatação térmica.
-    nome : str
-        Nome do material.
+    G : float, optional
+        Módulo de cisalhamento (default 0).
+    pe : float, optional
+        Peso específico (default 0).
+    cdt : float, optional
+        Coeficiente de dilatação térmica (default 0).
+    nome : str, optional
+        Nome do material (default "").
+
+    Examples
+    --------
+    >>> Material(E=200e9, G=77e9, pe=78500, cdt=1.2e-5, nome='Aço')
     """
 
     def __init__(self, E, G=0.0, pe=0.0, cdt=0.0, nome=""):
@@ -42,32 +46,35 @@ class Material:
 
 
 class SecaoBase:
-    """Classe base de seção transversal para elementos estruturais.
+    """Seção transversal definida diretamente pelas rigidezes e coeficientes térmicos.
 
-    Armazena diretamente as rigidezes e os coeficientes térmicos da seção,
-    sem dependência do material ou das propriedades geométricas brutas.
-    Útil quando as rigidezes são conhecidas diretamente (p. ex., perfis de catálogo).
+    Útil quando as rigidezes são conhecidas diretamente (p. ex., perfis de catálogo),
+    sem necessidade de fornecer material ou propriedades geométricas.
 
-    Atributos
-    ---------
+    Parameters
+    ----------
     EA : float
         Rigidez axial.
-    EI2 : float
-        Rigidez à flexão em torno do eixo local 2.
-    EI3 : float
-        Rigidez à flexão em torno do eixo local 3.
-    GJ : float
-        Rigidez à torção pura (St. Venant).
-    peso_unitario : float
-        Peso próprio por unidade de comprimento.
-    cdtEA : float
-        Coeficiente de dilatação térmica axial (``= alpha * EA``).
-    cdtEI2 : float
-        Coeficiente de dilatação térmica à flexão no eixo 2 (``= alpha * EI2``).
-    cdtEI3 : float
-        Coeficiente de dilatação térmica à flexão no eixo 3 (``= alpha * EI3``).
-    nome : str
-        Nome da seção.
+    EI3 : float, optional
+        Rigidez à flexão em torno do eixo local 3 (default 0).
+    EI2 : float, optional
+        Rigidez à flexão em torno do eixo local 2 (default 0).
+    GJ : float, optional
+        Rigidez à torção pura, St. Venant (default 0).
+    peso_unitario : float, optional
+        Peso próprio por unidade de comprimento (default 0).
+    cdtEA : float, optional
+        Produto ``alpha * EA`` para efeitos térmicos axiais (default 0).
+    cdtEI2 : float, optional
+        Produto ``alpha * EI2`` para efeitos térmicos na flexão em torno do eixo 2 (default 0).
+    cdtEI3 : float, optional
+        Produto ``alpha * EI3`` para efeitos térmicos na flexão em torno do eixo 3 (default 0).
+    nome : str, optional
+        Nome da seção (default "").
+
+    Examples
+    --------
+    >>> SecaoBase(EA=4e9, EI3=1.3e7, EI2=3.3e6, GJ=4.3e5)
     """
 
     def __init__(self, EA, EI3=0.0, EI2=0.0, GJ=0.0, peso_unitario=0.0,
@@ -96,53 +103,33 @@ class SecaoBase:
 
 
 class Secao(SecaoBase):
-    """Seção transversal para um elemento de barra prismático.
+    """Seção transversal de barra prismática definida por material e propriedades geométricas.
 
-    Calcula as rigidezes e os coeficientes térmicos a partir das propriedades
-    do material e das dimensões geométricas da seção.
+    Calcula as rigidezes e coeficientes térmicos a partir de ``mat``, ``A``,
+    ``I2``, ``I3`` e ``J``. Eixos locais: eixo 2 vertical, eixo 3 horizontal
+    (eixos principais centrais de inércia).
 
-    Na denominação dos eixos locais:
-    - eixo 2: eixo vertical (principal central de inércia).
-    - eixo 3: eixo horizontal (principal central de inércia).
-
-    Atributos adicionais (além dos de SecaoBase)
-    --------------------------------------------
+    Parameters
+    ----------
     mat : Material
         Material do elemento.
     A : float
         Área da seção transversal.
-    I2 : float
-        Momento de inércia em relação ao eixo local 2.
-    I3 : float
-        Momento de inércia em relação ao eixo local 3.
-    J : float
-        Constante de torção pura (St. Venant).
+    I3 : float, optional
+        Momento de inércia em relação ao eixo local 3 (default 0).
+    I2 : float, optional
+        Momento de inércia em relação ao eixo local 2 (default 0).
+    J : float, optional
+        Constante de torção pura, St. Venant (default 0).
+    nome : str, optional
+        Nome da seção (default "").
+
+    Examples
+    --------
+    >>> Secao(mat, A=0.02, I3=6.7e-5, I2=1.7e-5, J=5.6e-6)
     """
 
     def __init__(self, mat, A, I3=0.0, I2=0.0, J=0.0, nome=""):
-        """
-        Parameters
-        ----------
-        mat : Material
-            Material que forma o elemento estrutural.
-        A : float
-            Área da seção transversal.
-        I3 : float, optional
-            Momento de inércia em relação ao eixo local 3 (default 0).
-        I2 : float, optional
-            Momento de inércia em relação ao eixo local 2 (default 0).
-        J : float, optional
-            Constante de torção pura (St. Venant) (default 0).
-        nome : str, optional
-            Nome da seção transversal (default "").
-
-        Raises
-        ------
-        TypeError
-            Se ``mat`` não for do tipo Material.
-        ValueError
-            Se qualquer propriedade geométrica for negativa.
-        """
         if not isinstance(mat, Material):
             raise TypeError("mat deve ser do tipo Material")
 
@@ -178,21 +165,27 @@ class Secao(SecaoBase):
 
 
 class SecaoRetangular(Secao):
-    """Seção retangular para análise estrutural pelo AECPy."""
+    """Seção retangular de barra prismática.
+
+    Calcula ``A``, ``I2``, ``I3`` e ``J`` (St. Venant) a partir de ``b`` e ``h``.
+
+    Parameters
+    ----------
+    mat : Material
+        Material do elemento.
+    b : float
+        Largura da seção (paralelo ao eixo local 2).
+    h : float
+        Altura da seção (paralelo ao eixo local 3).
+    nome : str, optional
+        Nome da seção (default "").
+
+    Examples
+    --------
+    >>> SecaoRetangular(mat, b=0.1, h=0.2)
+    """
 
     def __init__(self, mat, b, h, nome=""):
-        """
-        Parameters
-        ----------
-        mat : Material
-            Material da seção transversal.
-        b : float
-            Largura da seção (paralelo ao eixo 2).
-        h : float
-            Altura da seção (paralelo ao eixo 3).
-        nome : str, optional
-            Nome da seção transversal (default "").
-        """
         A  = b * h
         I2 = b**3 * h / 12
         I3 = b * h**3 / 12
