@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from . import procedimentos as pmm
-from .elemento import Elemento
+from .elemento import ElementoBase as Elemento
 from .no import NoBase
 from .unidades import Conversor
 from .graficos import unidade_padrao_saida
@@ -27,7 +27,9 @@ def numerar_gdls(nos: list[NoBase]) -> int:
     # numerando os gdls livres
     for no in nos:
         igdl = list()
-        iS = sorted(list(no.il_gdlr) + list(no.il_gdlp))
+        gdlr = [no.idl(g) for g in no.deslocamentos_nulos]
+        gdlp = [no.idl(g) for g in no.deslocamentos_prescritos]
+        iS = sorted(gdlr + gdlp)
         for i in range(no.ngdl):
             if i not in iS:
                 igdl.append(ii)
@@ -78,7 +80,7 @@ def construir_SEL(
         pmm.espalhar(K_el_global, K , igdl)
 
         # Fornas nodais equivalentes em elementos carregados
-        if el.carregado or el.variacao_termica or el.inclui_peso_proprio: # or el.def_ini:
+        if el.carga or el.dTemp or el.inclui_peso_proprio:
             # Reações de engastamento perfeito (rep) em coordenadas locais
             rep_el_local = el.rep()
             # rep em coordenadas globais
@@ -89,15 +91,17 @@ def construir_SEL(
     # Contribuição dos nós à matriz de rigidez global e vetor de forças nodais
     for no in nos:
         # nó com força externa
-        if no.carregado:
+        if no.carga:
             F[no.igdl] += no.p
         # nó com deslocamento prescrito
-        if no.ngdlp > 0:
-            for ig, dp in zip(no.igdlp, no.dp):
+        if no.deslocamentos_prescritos:
+            for gdl, dp in no.deslocamentos_prescritos.items():
+                ig = no.idg(gdl)
                 F -= K[:, ig] * dp
         # nó com apoio elástico
-        if no.ngdle > 0:
-            for ig, k in zip(no.igdle, no.k):
+        if no.apoio_elastico:
+            for gdl, k in no.apoio_elastico.items():
+                ig = no.idg(gdl)
                 K[ig, ig] += k
 
     return K, F
@@ -117,17 +121,17 @@ def resolver_SEL(K: np.ndarray, F: np.ndarray, nos: list[NoBase], ngdlF: int) ->
 
     # Deslocamentos prescritos
     for no in nos:
-        if no.ngdlp > 0:
-            U[no.igdlp] = no.dp
+        for gdl, dp in no.deslocamentos_prescritos.items():
+            U[no.idg(gdl)] = dp
 
     # Reações
     R[ngdlF:] = K[ngdlF:, :ngdlF] @ U[:ngdlF] - F[ngdlF:]
 
     # Apoios elásticos
     for no in nos:
-        if no.ngdle > 0:
-            for ig, k_ae in zip(no.igdle, no.k):
-                R[ig] += -k_ae * U[ig]
+        for gdl, k_ae in no.apoio_elastico.items():
+            ig = no.idg(gdl)
+            R[ig] += -k_ae * U[ig]
 
     return U, R
 
@@ -136,8 +140,8 @@ def resultados_nos(nos: list[NoBase], U: np.ndarray, R: np.ndarray) -> pd.DataFr
     """
     Função para criar uma dataframe com os resultados nos nós
     """
-    deslocamentos = [d for d in No.info("gdls globais")]
-    reacoes = ["R" + f for f in No.info("forças globais")]
+    deslocamentos = list(nos[0].gdls_globais)
+    reacoes = ["R" + f for f in nos[0].forcas_globais]
     ngdl_no = nos[0].ngdl
         
     data = np.zeros((len(nos), 2 * ngdl_no))
