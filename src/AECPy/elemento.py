@@ -40,46 +40,34 @@ class ElementoBase:
     _cargas_globais = ()    # identificadores das cargas nos eixos globais
     _var_temperatura = ()   # identificadores das variáveis de temperatura
 
-    # mapa de funções de rigidez por parte (compartilhado entre todos os tipos)
+    # mapa de funções para cálculo de resultados internos por parte (usado em rel())
     _parte_rigidez = {
         "ax": {
-            "calc_K": axial.calc_Ka,
             "rel_d":  axial.rel_d_a,
             "carga":  "w1",
-            "rep":    axial.rep_w1,
             "rel_w":  axial.rel_w1,
             "dTemp":  "dT0",
-            "rep_dT": axial.rep_T,
             "rel_dT": axial.rel_T,
         },
         "tr": {
-            "calc_K": axial.calc_Kt,
             "rel_d":  axial.rel_d_t,
             "carga":  "",
-            "rep":    None,
             "rel_w":  None,
             "dTemp":  "",
-            "rep_dT": None,
             "rel_dT": None,
         },
         "b2": {
-            "calc_K": flexao.calc_Kb2,
             "rel_d":  flexao.rel_d_b2,
             "carga":  "w3",
-            "rep":    flexao.rep_w3,
             "rel_w":  flexao.rel_w3,
             "dTemp":  "dT3",
-            "rep_dT": flexao.rep_T3,
             "rel_dT": flexao.rel_T3,
         },
         "b3": {
-            "calc_K": flexao.calc_Kb3,
             "rel_d":  flexao.rel_d_b3,
             "carga":  "w2",
-            "rep":    flexao.rep_w2,
             "rel_w":  flexao.rel_w2,
             "dTemp":  "dT2",
-            "rep_dT": flexao.rep_T2,
             "rel_dT": flexao.rel_T2,
         },
     }
@@ -231,18 +219,23 @@ class ElementoBase:
     def Ke_local(self):
         """Calcula a matriz de rigidez local do elemento."""
         Kel = np.zeros((self.ngdl, self.ngdl))
-        for prt, il in self._partes.items():
-            calc_K = self._parte_rigidez[prt]["calc_K"]
-            pmm.espalhar(calc_K(self.sec, self.L), Kel, il)
+        if "ax" in self._partes:
+            pmm.espalhar(axial.calc_Ka(self.sec, self.L), Kel, self._partes["ax"])
+        if "tr" in self._partes:
+            pmm.espalhar(axial.calc_Kt(self.sec, self.L), Kel, self._partes["tr"])
+        if "b3" in self._partes:
+            pmm.espalhar(flexao.calc_Kb3(self.sec, self.L), Kel, self._partes["b3"])
+        if "b2" in self._partes:
+            pmm.espalhar(flexao.calc_Kb2(self.sec, self.L), Kel, self._partes["b2"])
         return Kel
 
-    def carga_total(self):
+    def carga_total(self) -> dict[str, np.ndarray]:
         """Cargas totais em coordenadas locais.
 
         Converte cargas em coordenadas globais (wx, wy, wz) para locais
         (w1, w2, w3) e soma às cargas definidas originalmente nos eixos locais.
         """
-        ct = {c: np.array(self.__carga.get(c, (0.0, 0.0)))
+        ct: dict[str, np.ndarray] = {c: np.array(self.__carga.get(c, (0.0, 0.0)))
               for c in self._cargas_locais}
 
         wg_i = np.zeros(3)
@@ -270,28 +263,29 @@ class ElementoBase:
     def rep(self):
         """Calcula as reações de engastamento perfeito das cargas no elemento."""
         rep = np.zeros(self.ngdl)
-
-        # caso especial: treliças com peso próprio
-        if self.tipo.startswith("T") and self.__inclui_peso_proprio:
-            R = pmm.R3D(self.e1_3D)
-            ff = R @ np.array([0.0, 0.0, self.sec.peso_unitario * self.L / 2])
-            if self.ndim == 2:
-                return np.concatenate((ff[:2], ff[:2]))
-            return np.concatenate((ff, ff))
-
+        if self.tipo in ("TP", "TE"):
+            if self.inclui_peso_proprio:
+                R = pmm.R3D(self.e1_3D)
+                ff = R @ np.array([0.0, 0.0, self.sec.peso_unitario * self.L / 2])
+                rep += np.concatenate((ff[:self.ndim], ff[:self.ndim]))
+            dT = self.dTemp
+            if "dT0" in dT:
+                pmm.espalhar(axial.rep_T(self.L, self.sec, dT["dT0"]), rep, self._partes["ax"])
+            return rep
         ct = self.carga_total()
-
-        for prt, il in self._partes.items():
-            calc_rep = self._parte_rigidez[prt]["rep"]
-            if calc_rep is not None:
-                carga = self._parte_rigidez[prt]["carga"]
-                rep[il] += calc_rep(self.L, ct[carga])
-
-            calc_rep_dT = self._parte_rigidez[prt]["rep_dT"]
-            dTemp_key = self._parte_rigidez[prt]["dTemp"]
-            if calc_rep_dT is not None and dTemp_key in self.__dTemp:
-                rep[il] += calc_rep_dT(self.L, self.sec, self.__dTemp[dTemp_key])
-
+        dT = self.dTemp
+        if "ax" in self._partes:
+            pmm.espalhar(axial.rep_w1(self.L, ct["w1"]), rep, self._partes["ax"])
+            if "dT0" in dT:
+                pmm.espalhar(axial.rep_T(self.L, self.sec, dT["dT0"]), rep, self._partes["ax"])
+        if "b3" in self._partes:
+            pmm.espalhar(flexao.rep_w2(self.L, ct["w2"]), rep, self._partes["b3"])
+            if "dT2" in dT:
+                pmm.espalhar(flexao.rep_T2(self.L, self.sec, dT["dT2"]), rep, self._partes["b3"])
+        if "b2" in self._partes:
+            pmm.espalhar(flexao.rep_w3(self.L, ct["w3"]), rep, self._partes["b2"])
+            if "dT3" in dT:
+                pmm.espalhar(flexao.rep_T3(self.L, self.sec, dT["dT3"]), rep, self._partes["b2"])
         return rep
 
     def rel(self, dl, x):
