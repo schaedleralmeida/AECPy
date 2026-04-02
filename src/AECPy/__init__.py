@@ -1,5 +1,5 @@
 from .material import Material
-from .secao import (Secao, SecaoRetangular)
+from .secao import (SecaoBase, Secao, SecaoRetangular)
 from .no import NoBase, NoPE, NoPP, NoTE, NoTP, NoGR
 from .elemento import ElementoBase, ElementoPP, ElementoPE, ElementoTP, ElementoTE, ElementoGR
 

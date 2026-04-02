@@ -62,13 +62,13 @@ def rel_w1(xi, S, L, w1):
 
 def rep_T(L, S, dT):
     """Reações de engastamento perfeito pela variação uniforme de temperatura na barra"""
-    return dT * S.mat.cdt * S.EA * np.array([1, -1])
+    return dT * S.cdtEA * np.array([1, -1])
 
 
 def rel_T(xi, S, L, dT):
     """Deslocamentos e esforços no ponto de coordenada adimensional xi
     no elemento calculados em função dos efeitos locais da variação de temperatura"""
-    return {"N": -S.mat.cdt * dT * S.EA * xi**0}
+    return {"N": -S.cdtEA * dT * xi**0}
 
 
 # -----------------------------------------------------------

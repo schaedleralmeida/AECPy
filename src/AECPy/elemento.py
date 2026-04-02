@@ -8,7 +8,7 @@ import numpy as np
 from . import axial, flexao
 from . import procedimentos as pmm
 from .no import NoBase, NoPP, NoPE, NoTP, NoTE, NoGR
-from .secao import Secao
+from .secao import SecaoBase
 
 
 def _acumular(dest, src):
@@ -50,8 +50,8 @@ class ElementoBase:
                 f"noI e noJ devem ser do tipo {self._tipo_no.__name__} "
                 f"para o elemento do tipo '{self.tipo}'"
             )
-        if not isinstance(sec, Secao):
-            raise TypeError("sec não é do tipo Secao")
+        if not isinstance(sec, SecaoBase):
+            raise TypeError("sec não é do tipo SecaoBase")
 
         self.noI = noI
         self.noJ = noJ
