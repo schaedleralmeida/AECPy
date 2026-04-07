@@ -98,7 +98,8 @@ def espalhar(Al, Ag, ig) -> None:
 
         for il in range(nig):  # preenchendo cada linha de Al
             Ag[ig[il], ig] += Al[il, :]
-
+    else:
+        raise ValueError("Ag.ndim e Al.ndim devem ser 1 ou 2")
     return
 
 
