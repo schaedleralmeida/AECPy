@@ -358,33 +358,3 @@ def igdl_FS(ngdl, ilr):
                 igdl[no, i] = inc_F
                 inc_F += 1
     return igdl, (nF, nS)
-
-
-# -------------------------------------------------------------------------------
-#  sem uso
-# -------------------------------------------------------------------------------
-def expandir_array(A, index):
-    m = A.shape[0]
-    n = len(index) + m
-
-    jj = [i not in index for i in range(n)]
-
-    ii = []
-    for j in range(n):
-        if jj[j]:
-            ii.append(j)
-    print(ii)
-
-    if A.ndim == 1:
-        eA = np.zeros(n)
-        print(eA.shape, A.shape, ii)
-        eA[ii] = A[:]
-
-    elif A.ndim == 2 and A.shape[0] == A.shape[1]:
-        eA = np.zeros((n, n))
-        for j, i in enumerate(ii):
-            eA[i, ii] = A[j, :]
-    else:
-        raise ValueError("o formato de A não é suportado")
-
-    return eA
