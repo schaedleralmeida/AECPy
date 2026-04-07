@@ -340,13 +340,8 @@ def igdl_FS(ngdl, ilr):
     nS = 0
     for ii in ilr:
         nS += len(ii)
-        # if not all([isinstance(i,int) and 0>=i>=ngdl for i in ii]) or len(ii)>:
-        #     raise ValueError('ilr com valor incorreto')
     # número total de graus de liberdade 'livres'
     nF = ngdl_total - nS
-
-    # array auxiliar como o índice local dos gdl do nó
-    il = np.array([i for i in range(ngdl)], dtype=int)
 
     # array com o índice global dos gdl dos nós
     igdl = np.zeros((nnos, ngdl), dtype=int)
@@ -355,18 +350,13 @@ def igdl_FS(ngdl, ilr):
     inc_F = 0
     inc_S = nF
     for no in range(nnos):
-        n = len(ilr[no])  # número de gdl restritos no nó
-        if n == 0:  # nós em gdl restritos
-            igdl[no, :] = il + inc_F
-            inc_F += ngdl
-        else:  # nós com `n` gdl restritos
-            for i in range(ngdl):  # índice local do gdl
-                if i in ilr[no]:  # está entre os restritos no nó
-                    igdl[no, i] = inc_S
-                    inc_S += 1
-                else:  # não está entre os restritos no nó
-                    igdl[no, i] = inc_F
-                    inc_F += 1
+        for i in range(ngdl):  # índice local do gdl
+            if i in ilr[no]:  # está entre os restritos no nó
+                igdl[no, i] = inc_S
+                inc_S += 1
+            else:  # não está entre os restritos no nó
+                igdl[no, i] = inc_F
+                inc_F += 1
     return igdl, (nF, nS)
 
 
