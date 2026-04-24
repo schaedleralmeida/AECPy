@@ -148,21 +148,23 @@ def resolver_SEL(K: np.ndarray, F: np.ndarray, nos: list[NoBase], ngdlF: int) ->
     return U, R
 
 
-def resultados_nos(nos: list[NoBase], U: np.ndarray, R: np.ndarray) -> list[pd.Series]:
+def resultados_nos(nos: list[NoBase], U: np.ndarray, R: np.ndarray) -> list[dict]:
     """
     Retorna lista de Series com deslocamentos e reações em cada nó.
     """
-    deslocamentos = list(nos[0].gdls_globais)
-    reacoes = ["R" + f for f in nos[0].forcas_globais]
-    ngdl_no = nos[0].ngdl
 
-    resultado = []
-    for no in nos:
-        igdl = no.igdl
-        dados = np.zeros(2 * ngdl_no)
-        dados[:ngdl_no] = U[igdl]
-        dados[ngdl_no:] = R[igdl]
-        resultado.append(pd.Series(dados, index=deslocamentos + reacoes))
+    resultado = [ { no.gdls_globais[i]: U.item(no.igdl[i]) for i in range(no.ngdl) } | {"R"+no.forcas_globais[i]: R.item(no.igdl[i]) for i in range(no.ngdl)} for no in nos ]
+    # deslocamentos = list(nos[0].gdls_globais)
+    # reacoes = ["R" + f for f in nos[0].forcas_globais]
+    # ngdl_no = nos[0].ngdl
+
+    # resultado = []
+    # for no in nos:
+    #     igdl = no.igdl
+    #     dados = np.zeros(2 * ngdl_no)
+    #     dados[:ngdl_no] = U[igdl]
+    #     dados[ngdl_no:] = R[igdl]
+    #     resultado.append(pd.Series(dados, index=deslocamentos + reacoes))
     return resultado
 
 
