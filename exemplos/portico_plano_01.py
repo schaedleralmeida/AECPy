@@ -1,6 +1,7 @@
 '''
 Exemplo 4.13 do livro Matrix Structural Analysis 2ed
 '''
+#%%
 import numpy as np
 from math import sin, cos, radians
 
@@ -11,6 +12,7 @@ from AECPy.secao import Secao, Material
 
 #unidades: [kN, mm]
 
+#%%
 #materiais:
 mat1 = Material(200, nome='meu_material')
 
@@ -18,54 +20,109 @@ mat1 = Material(200, nome='meu_material')
 sec_ab  = Secao(mat1, 6.e3, I3=200.e6, nome='Sec_AB')
 sec_bc  = Secao(mat1, 4.e3, I3= 50.e6, nome='Sec_BC')
 
-#nós:
+#%%
+# Metodologia 1: análise procedural (funções de módulo)
 nos = []
 nos.append(No([0.0, 5.0e3]))
 nos.append(No([8.0e3, 5.0e3]))
 nos.append(No([8.0e3, 0.0]))
 nos[0].deslocamentos_nulos = list(No.gdls_globais)
 nos[2].deslocamentos_nulos = list(No.gdls_globais)
+
 ang = radians(-45)
 nos[1].carga = {'fx': 100 * cos(ang), 'fz': 100 * sin(ang), 'my': -50.e3}
 
-#elementos:
 els = []
 els.append(Elemento(nos[0], nos[1], sec_ab))
 els.append(Elemento(nos[1], nos[2], sec_bc))
 
-
-# Análise
 ngdl = len(nos) * nos[0].ngdl
-
 ngdlF = aec.modelo.numerar_gdls(nos)
-# for i, no in enumerate(nos):
-#     print(f'{i=} : {no.igdl=}')
-
 K, F = aec.modelo.construir_SEL(nos, els, ngdl)
-# with np.printoptions(precision=0,linewidth=100,suppress=True):
-#     print(K)
-#     print(F)
-U, R = aec.modelo.resolver_SEL(K, F, nos, ngdlF)
+U_proc, R_proc = aec.modelo.resolver_SEL(K, F, nos, ngdlF)
+res_nos_proc_list = aec.modelo.resultados_nos(nos, U_proc, R_proc)
+res_nos_proc = {i: s for i, s in enumerate(res_nos_proc_list)}
+res_els_proc = aec.modelo.resultados_elementos(els, U_proc)
 
-res_nos = aec.modelo.resultados_nos(nos, U, R)
+print('\n=== Metodologia procedural ===')
+print('Deslocamentos e Reações na direção x para os nós 1 e 2:')
+print(np.array([[res_nos_proc[1]['ux'], res_nos_proc[1]['Rfx']],
+				[res_nos_proc[2]['ux'], res_nos_proc[2]['Rfx']]]))
+print(f"M3 no centro do elemento 0: {res_els_proc[0]['M3'][2]:.2f} kN.mm")
 
-print('\n Deslocamentos e Reações na direção x par os nós 1 e 2:')
-print( res_nos.loc[[1,2],['ux','Rfx']])
+#%%
+# Metodologia 2: análise com objeto Modelo
+modelo = aec.modelo.Modelo('PP', unidades=('mm', 'kN'))
 
+modelo.adicionar_no(1, [0.0, 5.0e3], deslocamentos_nulos=['ux', 'uz', 'ry'])
+modelo.adicionar_no(2, [8.0e3, 5.0e3], carga={'fx': 100 * cos(ang), 'fz': 100 * sin(ang), 'my': -50.e3})
+modelo.adicionar_no(3, [8.0e3, 0.0], deslocamentos_nulos=['ux', 'uz', 'ry'])
 
-res_els = aec.modelo.resultados_elementos(els, U)
-print(f'\n O momento M3 no centro do elemento 0 é {res_els[0]["M3"][2]:.2f} kNmm')
+modelo.adicionar_elemento(1, 1, 2, sec_ab)
+modelo.adicionar_elemento(2, 2, 3, sec_bc)
 
-print('\n O momento e força cortante no elemento 0 são:')
-uni = aec.unidades.Conversor('mm', 'kN')
-tab = aec.graficos.tabela_rel(res_els[0], ['M3', 'V2'], uni)
-print(tab)
+#%%
+modelo.analisar(npts=5)
+res_nos_obj = modelo.res_nos
+res_els_obj = modelo.res_elementos
+assert modelo.U is not None and modelo.R is not None
+assert res_nos_obj is not None and res_els_obj is not None
 
+print('\n=== Metodologia com objeto Modelo ===')
+print('Deslocamentos e Reações na direção x para os nós 2 e 3:')
+print(np.array([[res_nos_obj[2]['ux'], res_nos_obj[2]['Rfx']],
+				[res_nos_obj[3]['ux'], res_nos_obj[3]['Rfx']]]))
+print(f"M3 no centro do elemento 1: {res_els_obj[1]['M3'][2]:.2f} kN.mm")
 
-print('\n O diagrama de deslocamento transversal, momento e força cortante no elemento 0 são:')
-fig = aec.graficos.diagramas(res_els[0], ['u2', 'M3', 'V2'], uni, eltag=0)
+#%%
+# Comparação entre metodologias
+ok_u = np.allclose(U_proc, modelo.U)
+ok_r = np.allclose(R_proc, modelo.R)
+ok_m3 = np.isclose(res_els_proc[0]['M3'][2], res_els_obj[1]['M3'][2])
 
+print('\n=== Comparação ===')
+print(f'Deslocamentos iguais? {ok_u}')
+print(f'Reações iguais? {ok_r}')
+print(f'Momento M3 no centro do elemento correspondente igual? {ok_m3}')
 
+print('\nTabela de resultados (objeto Modelo):')
+print(modelo.tabela_nos())
+print('\nTabela do elemento 1 (objeto Modelo):')
+print(modelo.tabela_elemento(1, ['M3', 'V2']))
 
-print('Representação do modelo:')
-fig_modelo = aec.graficos.modelo_2d(nos, els)
+fig = modelo.diagramas_elemento(1, ['u2', 'M3', 'V2'])
+fig_modelo = modelo.visualizar()
+
+#%%
+# Escrita dos resultados em planilha
+aec.planilhas.salvar_excel('portico_plano_01.xlsx', modelo)
+print('\nResultados salvos em portico_plano_01.xlsx')
+
+#%%
+# Reconstrução do modelo a partir da planilha gerada
+modelo_reconstruido = aec.modelo.Modelo('PP', unidades=('mm', 'kN'))
+aec.planilhas.carregar_excel('portico_plano_01.xlsx', modelo_reconstruido)
+modelo_reconstruido.analisar(npts=5)
+print('\n=== Modelo reconstruído a partir da planilha ===')
+print(modelo_reconstruido)
+print(modelo_reconstruido.tabela_nos())
+
+#%%
+# Verificação: resultados do modelo reconstruído são iguais ao original?
+assert modelo.U is not None and modelo_reconstruido.U is not None
+assert modelo.R is not None and modelo_reconstruido.R is not None
+ok_u   = np.allclose(modelo.U, modelo_reconstruido.U)
+ok_r   = np.allclose(modelo.R, modelo_reconstruido.R)
+
+res_els_rec = modelo_reconstruido.res_elementos
+assert res_els_rec is not None
+ok_els = all(
+    np.allclose(res_els_obj[id_el][g], res_els_rec[id_el][g])
+    for id_el in res_els_obj
+    for g in res_els_obj[id_el]
+)
+
+print('\n=== Verificação modelo original × reconstruído ===')
+print(f'Deslocamentos iguais?        {ok_u}')
+print(f'Reações iguais?              {ok_r}')
+print(f'Esforços nos elementos iguais? {ok_els}')
