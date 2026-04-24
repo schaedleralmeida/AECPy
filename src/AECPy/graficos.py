@@ -357,6 +357,44 @@ def modelo_2d(nos, els):
 
     return fig
 
+def conv_no(res_no: dict, conv: Conversor) -> dict:
+    """Converte os resultados de um nó para as unidades de saída padrão.
+
+    Análogo a :func:`conv_rel`, mas para o dicionário escalar retornado por
+    :func:`~AECPy.modelo.resultados_nos` (valores únicos em vez de listas).
+
+    Parâmetros
+    ----------
+    res_no : dict
+        Dicionário ``{grandeza: valor}`` de um único nó.
+        As chaves de reação devem começar com ``'R'`` (ex.: ``'Rfx'``).
+    conv : Conversor
+        Conversor de unidades.
+
+    Retorna
+    -------
+    dict
+        Novo dicionário com as chaves renomeadas para incluir a unidade
+        (ex.: ``'ux (mm)'``, ``'Rfx (kN)'``) e valores convertidos.
+    """
+    res_ups = {}
+    for quant, val in res_no.items():
+        lookup = quant[1:] if quant.startswith("R") else quant
+        ups = unidade_padrao_saida(lookup)
+        if ups:
+            try:
+                c = conv.para(ups)
+                res_ups[f"{quant} ({ups})"] = val * c
+            except Exception:
+                if ups == "rad":
+                    res_ups[f"{quant} (rad)"] = val
+                else:
+                    res_ups[quant] = val
+        else:
+            res_ups[quant] = val
+    return res_ups
+
+
 def tabela_rel(relpts:dict, resultados:list[str]=[], conv=None) -> pd.DataFrame:
     """
     Cria uma tabela com os deslocamentos e esforços ao longo
