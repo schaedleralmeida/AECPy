@@ -8,3 +8,4 @@ from . import unidades
 from . import procedimentos
 from . import modelo
 from . import graficos
+from . import planilhas
