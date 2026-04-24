@@ -17,11 +17,11 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure as MplFigure
 
 from .graficos import (
+    conv_no,
     diagramas,
     modelo_2d,
     modelo_3d,
     tabela_rel,
-    unidade_padrao_saida,
 )
 
 
@@ -180,69 +180,6 @@ def resultados_elementos(els: list[Elemento], U: np.ndarray, npts: int = 5) -> l
     return resultados
 
 
-# ---------------------------------------------------------------------------
-# Funções auxiliares para leitura do arquivo Excel/ODS
-# ---------------------------------------------------------------------------
-
-def _parse_literal(val):
-    """Converte o conteúdo de uma célula em um objeto Python.
-
-    Exemplos de valores aceitos:
-    - ``[0.0, 5.0]``          → lista de coordenadas
-    - ``{'fx': 10.0}``        → dicionário de cargas
-    - ``['ux', 'uz']``        → lista de graus de liberdade
-    - Célula vazia / NaN     → ``None``
-    """
-    import ast
-    try:
-        if pd.isna(val):
-            return None
-    except (TypeError, ValueError):
-        pass
-    if isinstance(val, str):
-        texto = val.strip()
-        return ast.literal_eval(texto) if texto else None
-    return val
-
-
-def _parse_params(params_str) -> dict:
-    """Converte uma string 'chave=valor, chave=valor' em dicionário.
-
-    Exemplo: ``'A=0.02, I3=6.7e-5'`` → ``{'A': 0.02, 'I3': 6.7e-5}``
-    Retorna um dicionário vazio quando o campo está em branco.
-    """
-    if params_str is None:
-        return {}
-    texto = str(params_str).strip()
-    if not texto or texto.lower() in ("nan", "none"):
-        return {}
-    resultado: dict = {}
-    for parte in texto.split(","):
-        parte = parte.strip()
-        if "=" in parte:
-            chave, valor = parte.split("=", 1)
-            resultado[chave.strip()] = float(valor.strip())
-    return resultado
-
-
-def _parse_bool(val) -> bool | None:
-    """Converte o conteúdo de uma célula em booleano.
-
-    Aceita ``True``/``False``, ``1``/``0``, ``'sim'``/``'yes'`` etc.
-    Retorna ``None`` quando a célula está vazia.
-    """
-    try:
-        if pd.isna(val):
-            return None
-    except (TypeError, ValueError):
-        pass
-    if isinstance(val, bool):
-        return val
-    if isinstance(val, (int, float)):
-        return bool(int(val))
-    return str(val).strip().lower() in ("true", "1", "sim", "yes")
-
-
 class Modelo:
     """Modelo estrutural para análise pelo Método da Rigidez Direta (MRD).
 
@@ -291,7 +228,7 @@ class Modelo:
         self.F: np.ndarray | None = None
         self.U: np.ndarray | None = None
         self.R: np.ndarray | None = None
-        self._res_nos: dict[int, pd.Series] | None = None
+        self._res_nos: dict[int, dict] | None = None
         self._res_elementos: dict[int, dict] | None = None
 
     # ------------------------------------------------------------------
@@ -393,232 +330,6 @@ class Modelo:
                 i += 1
             self._secoes[f"sec_{i}"] = sec
 
-    # ------------------------------------------------------------------
-    # Carregamento de arquivo Excel / ODS
-
-    def carregar_excel(self, caminho: str) -> None:
-        """Carrega os dados do modelo a partir de um arquivo Excel ou ODS.
-
-        O arquivo deve conter as seguintes abas:
-
-        **materiais** — colunas: ``label``, ``E`` e, opcionalmente, ``G``,
-        ``pe``, ``cdt``, ``nome``.
-
-        **secoes** — colunas: ``label``, ``tipo`` (nome da classe: ``SecaoBase``,
-        ``Secao`` ou ``SecaoRetangular``), ``material`` (label do material,
-        obrigatório para ``Secao`` e ``SecaoRetangular``), ``params`` (string
-        com argumentos adicionais no formato ``chave=valor, chave=valor``,
-        p. ex. ``A=0.02, I3=6.7e-5``).
-
-        **nos** — colunas: ``id``, ``coor`` e, opcionalmente, ``carga``,
-        ``deslocamentos_nulos``, ``deslocamentos_prescritos``, ``apoio_elastico``.
-        Os valores de ``coor`` e das colunas opcionais devem ser escritos como
-        literais Python (lista ou dicionário), p. ex. ``[0.0, 5.0]`` ou
-        ``{'fx': 10.0, 'fz': -5.0}``.
-
-        **elementos** — colunas: ``id``, ``id_noI``, ``id_noJ``, ``sec``
-        (label da seção) e, opcionalmente, ``carga``, ``dTemp``,
-        ``inclui_peso_proprio``.
-
-        Parâmetros
-        ----------
-        caminho : str
-            Caminho para o arquivo (``.xlsx``, ``.ods``, ``.xls``, …).
-            Requer ``openpyxl`` para ``.xlsx`` e ``odfpy`` para ``.ods``.
-        """
-        xls = pd.ExcelFile(caminho)
-        materiais = self._ler_materiais(xls)
-        secoes = self._ler_secoes(xls, materiais)
-        self._ler_nos(xls)
-        self._ler_elementos(xls, secoes)
-
-    def _ler_materiais(self, xls: pd.ExcelFile) -> dict:
-        """Lê a aba 'materiais' e retorna um dicionário {label: Material}.
-
-        Colunas esperadas: ``label``, ``E`` (obrigatórias).
-        Colunas opcionais: ``G``, ``pe``, ``cdt``, ``nome``.
-        """
-        from .secao import Material
-
-        if "materiais" not in xls.sheet_names:
-            raise ValueError(
-                "Aba 'materiais' não encontrada no arquivo. "
-                f"Abas disponíveis: {xls.sheet_names}"
-            )
-        materiais: dict = {}
-
-        df = pd.read_excel(xls, sheet_name="materiais", dtype=str)
-        df = df.where(df.notna(), other=None)
-
-        for _, linha in df.iterrows():
-            label = str(linha["label"])
-
-            E = float(linha["E"])
-            G   = float(linha["G"])   if "G"   in linha.index and linha["G"]   is not None else 0.0
-            pe  = float(linha["pe"])  if "pe"  in linha.index and linha["pe"]  is not None else 0.0
-            cdt = float(linha["cdt"]) if "cdt" in linha.index and linha["cdt"] is not None else 0.0
-            nome = str(linha["nome"]) if "nome" in linha.index and linha["nome"] is not None else ""
-
-            materiais[label] = Material(E=E, G=G, pe=pe, cdt=cdt, nome=nome)
-
-        return materiais
-
-    def _ler_secoes(self, xls: pd.ExcelFile, materiais: dict) -> dict:
-        """Lê a aba 'secoes' e retorna um dicionário {label: SecaoBase}.
-
-        Colunas esperadas: ``label``, ``tipo``, ``params``.
-        Coluna ``material`` é obrigatória para os tipos ``Secao`` e
-        ``SecaoRetangular``.
-
-        O campo ``tipo`` deve conter o nome exato da classe:
-        ``SecaoBase``, ``Secao`` ou ``SecaoRetangular``.
-
-        O campo ``params`` deve conter os demais argumentos no formato
-        ``chave=valor, chave=valor`` (ex.: ``A=0.02, I3=6.7e-5``).
-        """
-        from .secao import Secao, SecaoRetangular
-
-        _tipos_secao: dict[str, type] = {
-            "SecaoBase": SecaoBase,
-            "Secao": Secao,
-            "SecaoRetangular": SecaoRetangular,
-        }
-
-        if "secoes" not in xls.sheet_names:
-            raise ValueError(
-                "Aba 'secoes' não encontrada no arquivo. "
-                f"Abas disponíveis: {xls.sheet_names}"
-            )
-        secoes: dict = {}
-
-        df = pd.read_excel(xls, sheet_name="secoes", dtype=str)
-        df = df.where(df.notna(), other=None)
-
-        for _, linha in df.iterrows():
-            label = str(linha["label"])
-            tipo_nome = str(linha["tipo"]).strip()
-
-            cls = _tipos_secao.get(tipo_nome)
-            if cls is None:
-                raise ValueError(
-                    f"Tipo de seção desconhecido: '{tipo_nome}'. "
-                    f"Use um de: {list(_tipos_secao)}"
-                )
-
-            # Converte 'A=0.02, I3=6.7e-5' em {'A': 0.02, 'I3': 6.7e-5}
-            params_str = linha["params"] if "params" in linha.index else None
-            kwargs = _parse_params(params_str)
-            kwargs["nome"] = label
-
-            # Tipos que precisam de um objeto Material
-            if issubclass(cls, Secao):
-                mat_label = (
-                    str(linha["material"]).strip()
-                    if "material" in linha.index and linha["material"] is not None
-                    else None
-                )
-                if mat_label is None:
-                    raise ValueError(
-                        f"A seção '{label}' (tipo '{tipo_nome}') requer a coluna 'material'."
-                    )
-                if mat_label not in materiais:
-                    raise KeyError(
-                        f"Material '{mat_label}' não encontrado para a seção '{label}'. "
-                        f"Materiais disponíveis: {list(materiais)}"
-                    )
-                secoes[label] = cls(materiais[mat_label], **kwargs)
-            else:
-                secoes[label] = cls(**kwargs)
-
-        return secoes
-
-    def _ler_nos(self, xls: pd.ExcelFile) -> None:
-        """Lê a aba 'nos' e adiciona cada nó ao modelo.
-
-        Colunas obrigatórias: ``id`` e as colunas de coordenadas com os nomes
-        dos eixos globais do tipo de nó (p. ex. ``x`` e ``z`` para pórtico
-        plano; ``x``, ``y`` e ``z`` para pórtico espacial).
-
-        Colunas opcionais: ``carga``, ``deslocamentos_nulos``,
-        ``deslocamentos_prescritos``, ``apoio_elastico``.
-        Esses campos devem ser escritos como literais Python,
-        por exemplo ``{'fx': 10.0}`` ou ``['ux', 'uz']``.
-        """
-        if "nos" not in xls.sheet_names:
-            raise ValueError(
-                "Aba 'nos' não encontrada no arquivo. "
-                f"Abas disponíveis: {xls.sheet_names}"
-            )
-
-        df = pd.read_excel(xls, sheet_name="nos")
-
-        # Eixos globais do tipo de nó deste modelo (ex.: ('x', 'z') para PP)
-        eixos = self._tipos_no[self.tipo].eixos_globais
-
-        # Verifica se todas as colunas de coordenadas estão presentes
-        for eixo in eixos:
-            if eixo not in df.columns:
-                raise ValueError(
-                    f"Coluna '{eixo}' não encontrada na aba 'nos'. "
-                    f"Para o tipo '{self.tipo}', as colunas de coordenadas esperadas são: {list(eixos)}"
-                )
-
-        for _, linha in df.iterrows():
-            id_no = int(linha["id"])
-
-            # Monta a lista de coordenadas na ordem correta dos eixos globais
-            coor = [float(linha[eixo]) for eixo in eixos]
-
-            # Campos opcionais: só são incluídos se a coluna existir e não estiver vazia
-            opcoes = {}
-            if "carga"                    in linha.index: opcoes["carga"]                    = _parse_literal(linha["carga"])
-            if "deslocamentos_nulos"      in linha.index: opcoes["deslocamentos_nulos"]      = _parse_literal(linha["deslocamentos_nulos"])
-            if "deslocamentos_prescritos" in linha.index: opcoes["deslocamentos_prescritos"] = _parse_literal(linha["deslocamentos_prescritos"])
-            if "apoio_elastico"           in linha.index: opcoes["apoio_elastico"]           = _parse_literal(linha["apoio_elastico"])
-            # Remove entradas cuja célula estava vazia (None)
-            opcoes = {chave: valor for chave, valor in opcoes.items() if valor is not None}
-
-            self.adicionar_no(id_no, coor, **opcoes)
-
-    def _ler_elementos(self, xls: pd.ExcelFile, secoes: dict) -> None:
-        """Lê a aba 'elementos' e adiciona cada elemento ao modelo.
-
-        Colunas esperadas: ``id``, ``id_noI``, ``id_noJ``, ``sec``
-        (label da seção, conforme definido na aba 'secoes').
-        Colunas opcionais: ``carga``, ``dTemp``, ``inclui_peso_proprio``.
-        """
-        if "elementos" not in xls.sheet_names:
-            raise ValueError(
-                "Aba 'elementos' não encontrada no arquivo. "
-                f"Abas disponíveis: {xls.sheet_names}"
-            )
-
-        df = pd.read_excel(xls, sheet_name="elementos")
-
-        for _, linha in df.iterrows():
-            id_el = int(linha["id"])
-            id_noI = int(linha["id_noI"])
-            id_noJ = int(linha["id_noJ"])
-            sec_label = str(linha["sec"]).strip()
-
-            if sec_label not in secoes:
-                raise KeyError(
-                    f"Seção '{sec_label}' não encontrada para o elemento {id_el}. "
-                    f"Seções disponíveis: {list(secoes)}"
-                )
-
-            kwargs: dict = {}
-            for coluna in ("carga", "dTemp"):
-                if coluna in linha.index:
-                    valor = _parse_literal(linha[coluna])
-                    if valor is not None:
-                        kwargs[coluna] = valor
-
-            if "inclui_peso_proprio" in linha.index:
-                kwargs["inclui_peso_proprio"] = _parse_bool(linha["inclui_peso_proprio"])
-
-            self.adicionar_elemento(id_el, id_noI, id_noJ, secoes[sec_label], **kwargs)
-
     def abrir(self) -> None:
         """Reabre o modelo para edição, zerando todos os dados derivados.
 
@@ -684,7 +395,7 @@ class Modelo:
     # Acesso
 
     @property
-    def res_nos(self) -> dict[int, pd.Series] | None:
+    def res_nos(self) -> dict[int, dict] | None:
         """Resultados nos nós. None se o modelo não foi analisado."""
         return self._res_nos
 
@@ -791,22 +502,11 @@ class Modelo:
             dados = {id: self._res_nos[id] for id in ids}
         else:
             dados = self._res_nos
-        df = pd.DataFrame(dados).T
-        df.index.name = "nó"
         conv = conv if conv is not None else self.conv
         if conv is not None:
-            rename: dict[str, str] = {}
-            for col in df.columns:
-                lookup = col[1:] if col.startswith("R") else col
-                ups = unidade_padrao_saida(lookup)
-                if ups:
-                    try:
-                        c = conv.para(ups)
-                        df[col] = df[col] * c
-                        rename[col] = f"{col} ({ups})"
-                    except Exception:
-                        pass
-            df = df.rename(columns=rename)
+            dados = {id: conv_no(res_no, conv) for id, res_no in dados.items()}
+        df = pd.DataFrame(dados).T
+        df.index.name = "nó"
         return df
 
     def tabela_elemento(
