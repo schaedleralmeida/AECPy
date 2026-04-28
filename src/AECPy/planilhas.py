@@ -86,7 +86,7 @@ def _parse_bool(val) -> bool | None:
 
 
 # ---------------------------------------------------------------------------
-# Leitores de cada aba
+# Leitores de cada aba (materiais, secoes, nos, elementos, etc)
 # ---------------------------------------------------------------------------
 
 def ler_materiais(df: pd.DataFrame) -> dict:
