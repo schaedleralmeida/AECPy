@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 # ---------------------------------------------------------------------------
-# Helpers de conversão de célula
+# Helpers de conversão de célula (string → objeto Python)
 # ---------------------------------------------------------------------------
 
 def _parse_literal(val):
