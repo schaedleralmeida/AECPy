@@ -92,7 +92,7 @@ def construir_SEL(
         pmm.espalhar(K_el_global, K , igdl)
 
         # Fornas nodais equivalentes em elementos carregados
-        if el.carga or el.dTemp or el.inclui_peso_proprio:
+        if el.carga or el.dTemp or el.def_ini or el.inclui_peso_proprio:
             # Reações de engastamento perfeito (rep) em coordenadas locais
             rep_el_local = el.rep()
             # rep em coordenadas globais

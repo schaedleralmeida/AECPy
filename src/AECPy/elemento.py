@@ -59,6 +59,7 @@ class ElementoBase:
 
         self.__carga = {}
         self.__dTemp = {}
+        self.__def_ini = None
         self.__inclui_peso_proprio = False
 
         self.atualizar_geometria()
@@ -176,6 +177,17 @@ class ElementoBase:
                 raise TypeError(f"O valor de temperatura '{var}' deve ser numérico")
         self.__dTemp = dict(valores)
 
+
+    @property
+    def def_ini(self):
+        """Deformação inicial da barra, como um valor único para toda a extensão."""
+        return self.__def_ini
+    @def_ini.setter
+    def def_ini(self, valor):
+        """Define a deformação inicial da barra."""
+        if not isinstance(valor, (int, float)):
+            raise TypeError("def_ini deve ser um valor numérico")
+        self.__def_ini = valor
     # ------------------------------------------------------------------
     # Cálculos
 
@@ -248,6 +260,8 @@ class ElementoBase:
             dT = self.dTemp
             if "dT0" in dT:
                 pmm.espalhar(axial.rep_T(self.L, self.sec, dT["dT0"]), rep, self._partes["ax"])
+            if self.def_ini is not None:
+                pmm.espalhar(axial.rep_def_ini(self.L, self.sec, self.def_ini), rep, self._partes["ax"])
             return rep  # demais partes não existem em treliças
 
         # Pórticos e grelhas: cargas locais via funções de REP por parte
@@ -257,6 +271,8 @@ class ElementoBase:
             pmm.espalhar(axial.rep_w1(self.L, ct["w1"]), rep, self._partes["ax"])
             if "dT0" in dT:
                 pmm.espalhar(axial.rep_T(self.L, self.sec, dT["dT0"]), rep, self._partes["ax"])
+            if self.def_ini is not None:
+                pmm.espalhar(axial.rep_def_ini(self.L, self.sec, self.def_ini), rep, self._partes["ax"])
         if "b3" in self._partes:        # viga no plano 1-2 (PP, PE, GR)
             pmm.espalhar(flexao.rep_w2(self.L, ct["w2"]), rep, self._partes["b3"])
             if "dT2" in dT:
@@ -282,6 +298,8 @@ class ElementoBase:
                 _acumular(resultado, axial.rel_w1(xi, self.sec, self.L, ct["w1"]))
             if "dT0" in dT:
                 _acumular(resultado, axial.rel_T(xi, self.sec, self.L, dT["dT0"]))
+            if self.def_ini is not None:
+                _acumular(resultado, axial.rel_def_ini(xi, self.sec, self.L, self.def_ini))
         if "tr" in self._partes:        # torção (PE)
             il = self._partes["tr"]
             _acumular(resultado, axial.rel_d_t(xi, self.sec, self.L, dl[il]))

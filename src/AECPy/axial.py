@@ -71,6 +71,15 @@ def rel_T(xi, S, L, dT):
     return {"N": -S.cdtEA * dT * xi**0}
 
 
+def rep_def_ini(L,S,def_ini):
+    """Reações de engastamento perfeito pela deformação inicial da barra"""
+    return def_ini * S.EA * np.array([1, -1])
+
+def rel_def_ini(xi, S, L, def_ini):
+    """Deslocamentos e esforços no ponto de coordenada adimensional xi
+    no elemento calculados em função dos efeitos locais da deformação inicial"""
+    return {"N": -S.EA * def_ini * xi**0}
+
 # -----------------------------------------------------------
 #                    torção
 # -----------------------------------------------------------
